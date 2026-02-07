@@ -179,6 +179,10 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 					return;
 				}
 				this._applyGuardResult(guardResult, newHash, toRoute);
+			}).catch((error: unknown) => {
+				if (generation !== this._parseGeneration) return;
+				Log.error("Async guard chain failed, blocking navigation", String(error), LOG_COMPONENT);
+				this._restoreHash();
 			});
 		} else {
 			// All guards were synchronous → apply result in the same tick
@@ -290,7 +294,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 	 * Validate a non-true synchronous guard result.
 	 */
 	_validateGuardResult(this: RouterInstance, result: GuardResult): GuardResult {
-		if (result === false || typeof result === "string" || isGuardRedirect(result)) {
+		if (typeof result === "string" || typeof result === "boolean" || isGuardRedirect(result)) {
 			return result;
 		}
 		Log.warning(
@@ -314,6 +318,8 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 			if (typeof result === "string") {
 				this.navTo(result, {}, {}, true);
 			} else if (isGuardRedirect(result)) {
+				// navTo's componentTargetInfo parameter is typed as object internally
+				// but the public signature does not expose it accurately; cast required.
 				this.navTo(result.route, result.parameters || {}, result.componentTargetInfo as any, true);
 			}
 		} finally {

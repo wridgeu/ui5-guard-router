@@ -236,7 +236,7 @@ QUnit.test("Guard returning false blocks navigation", function (assert: Assert) 
 
 	router.navTo("protected");
 
-	nextTick(200).then(() => {
+	nextTick(500).then(() => {
 		assert.notOk(routeMatched, "Navigation was blocked");
 		done();
 	});
@@ -258,7 +258,7 @@ QUnit.test("Async guard returning false blocks navigation", function (assert: As
 
 	router.navTo("protected");
 
-	nextTick(200).then(() => {
+	nextTick(500).then(() => {
 		assert.notOk(routeMatched, "Async guard blocked navigation");
 		done();
 	});
@@ -277,7 +277,7 @@ QUnit.test("Route-specific guard returning false blocks navigation", function (a
 
 	router.navTo("protected");
 
-	nextTick(200).then(() => {
+	nextTick(500).then(() => {
 		assert.notOk(routeMatched, "Route guard blocked navigation");
 		done();
 	});
@@ -298,7 +298,7 @@ QUnit.test("Guard throwing an error blocks navigation", function (assert: Assert
 
 	router.navTo("protected");
 
-	nextTick(200).then(() => {
+	nextTick(500).then(() => {
 		assert.notOk(routeMatched, "Navigation blocked on guard error");
 		done();
 	});
@@ -317,7 +317,7 @@ QUnit.test("Guard returning rejected Promise blocks navigation", function (asser
 
 	router.navTo("protected");
 
-	nextTick(200).then(() => {
+	nextTick(500).then(() => {
 		assert.notOk(routeMatched, "Navigation blocked on rejected promise");
 		done();
 	});
@@ -443,7 +443,7 @@ QUnit.test("Multiple global guards run sequentially, first rejection wins", func
 		order.length = 0;
 		router.navTo("protected");
 
-		nextTick(200).then(() => {
+		nextTick(500).then(() => {
 			assert.deepEqual(order, [1, 2], "Guards ran sequentially and stopped at first rejection");
 			done();
 		});
@@ -531,7 +531,7 @@ QUnit.test("Guard returning invalid value treats as block", function (assert: As
 
 	router.navTo("protected");
 
-	nextTick(200).then(() => {
+	nextTick(500).then(() => {
 		assert.notOk(routeMatched, "Invalid guard return treated as block");
 		done();
 	});
@@ -645,7 +645,7 @@ QUnit.test("Direct hash change to guarded route is blocked", function (assert: A
 	// Simulate typing a URL directly - uses HashChanger
 	HashChanger.getInstance().setHash("protected");
 
-	nextTick(200).then(() => {
+	nextTick(500).then(() => {
 		assert.notOk(routeMatched, "Direct hash change was blocked by guard");
 		done();
 	});
@@ -722,7 +722,7 @@ QUnit.test("Guard state change between navigations is respected", function (asse
 	// First attempt: blocked
 	router.navTo("protected");
 
-	nextTick(200).then(() => {
+	nextTick(500).then(() => {
 		// Should have been redirected to home
 		assert.ok(homeMatchCount > 0, "First attempt redirected to home");
 
@@ -758,7 +758,7 @@ QUnit.test("Adding guard mid-session blocks subsequent navigations", function (a
 		router.navTo("home");
 		nextTick(100).then(() => {
 			router.navTo("protected");
-			nextTick(200).then(() => {
+			nextTick(500).then(() => {
 				assert.notOk(secondMatched, "Guard added mid-session blocked navigation");
 				done();
 			});
@@ -778,7 +778,7 @@ QUnit.test("Removing guard mid-session allows subsequent navigations", function 
 
 	// First attempt: blocked
 	router.navTo("protected");
-	nextTick(200).then(() => {
+	nextTick(500).then(() => {
 		// Remove the guard
 		router.removeRouteGuard("protected", guard);
 
@@ -788,7 +788,7 @@ QUnit.test("Removing guard mid-session allows subsequent navigations", function 
 
 		// Second attempt: should now work
 		router.navTo("protected");
-		nextTick(200).then(() => {
+		nextTick(500).then(() => {
 			assert.strictEqual(matchedCount, 1, "Navigation allowed after guard removed");
 			done();
 		});

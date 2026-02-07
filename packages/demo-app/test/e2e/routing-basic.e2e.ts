@@ -30,6 +30,20 @@ describe("Basic routing (no guard interaction)", () => {
 	});
 
 	it("should navigate back to Home", async () => {
+		await browser.goTo({ sHash: "" });
+
+		// Login and navigate to Protected first
+		const toggleBtn = await browser.asControl({
+			selector: { id: "container-demo.app---homeView--toggleLoginBtn" }
+		});
+		await toggleBtn.press();
+
+		const navBtn = await browser.asControl({
+			selector: { id: "container-demo.app---homeView--navProtectedBtn" }
+		});
+		await navBtn.press();
+		await waitForPage("container-demo.app---protectedView--protectedPage", "Protected Page");
+
 		// Use the nav back button on the protected page
 		await fireEvent("container-demo.app---protectedView--protectedPage", "navButtonPress");
 

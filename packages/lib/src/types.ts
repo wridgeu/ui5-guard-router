@@ -15,6 +15,10 @@ export interface GuardRedirect {
 /**
  * Result of a guard check.
  *
+ * Only strict `true` allows navigation. All other values (including truthy
+ * non-boolean values) block or redirect. This avoids accidental allow from
+ * falsy/truthy coercion.
+ *
  * - `true`            → allow navigation to proceed
  * - `false`           → block navigation (stay on current route, no history entry)
  * - `string`          → redirect to this route name (replaceHash, no history entry)

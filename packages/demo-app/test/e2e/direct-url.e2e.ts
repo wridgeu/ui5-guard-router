@@ -54,6 +54,11 @@ describe("Direct URL navigation with guards", () => {
 			return !!Element?.getElementById("container-demo.app---appView--appContainer");
 		});
 		expect(isAppAlive).toBe(true);
+
+		// Verify no uncaught JS errors in the browser console
+		const logs = await browser.getLogs("browser");
+		const severe = logs.filter((log: any) => log.level === "SEVERE");
+		expect(severe.length).toBe(0);
 	});
 
 	it("should handle rapid hash changes in the address bar", async () => {
