@@ -1,0 +1,27 @@
+node_modules/
+dist/
+.ui5/
+coverage/
+*.js.map
+*.d.ts
+*.d.ts.map
+
+# Build output in src directories
+packages/lib/src/**/*.js
+packages/demo-app/webapp/**/*.js
+
+# TypeScript build info
+*.tsbuildinfo
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# wdio
+allure-results/

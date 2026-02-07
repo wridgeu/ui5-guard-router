@@ -1,0 +1,22 @@
+{
+	"name": "ui5-ext-routing-demo",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Demo app for ui5-ext-routing library",
+	"type": "module",
+	"scripts": {
+		"start": "ui5 serve --open /index.html",
+		"build": "ui5 build",
+		"typecheck": "tsc --noEmit"
+	},
+	"devDependencies": {
+		"@openui5/types": "1.144.0",
+		"@ui5/cli": "^4.0.0",
+		"typescript": "~5.7.0",
+		"ui5-tooling-transpile": "^3.0.0",
+		"ui5-middleware-livereload": "^3.0.0"
+	},
+	"dependencies": {
+		"ui5-ext-routing": "*"
+	}
+}

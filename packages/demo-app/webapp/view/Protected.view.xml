@@ -1,0 +1,17 @@
+<mvc:View
+	xmlns:mvc="sap.ui.core.mvc"
+	xmlns="sap.m"
+	controllerName="demo.app.controller.Protected">
+	<Page id="protectedPage" title="Protected Page" showNavButton="true" navButtonPress=".onNavBack">
+		<content>
+			<VBox class="sapUiMediumMargin" alignItems="Start">
+				<MessageStrip
+					text="You are viewing a protected page. This is only visible when logged in."
+					type="Success"
+					showIcon="true"
+					class="sapUiSmallMarginBottom" />
+				<Text text="If you see this page, the guard allowed your navigation." />
+			</VBox>
+		</content>
+	</Page>
+</mvc:View>

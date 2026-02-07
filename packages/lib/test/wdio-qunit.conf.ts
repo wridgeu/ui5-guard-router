@@ -1,0 +1,32 @@
+export const config: WebdriverIO.Config = {
+	runner: "local",
+	specs: [],
+	maxInstances: 1,
+	capabilities: [
+		{
+			browserName: "chrome",
+			"goog:chromeOptions": {
+				args: ["--headless", "--no-sandbox", "--disable-gpu", "--window-size=1920,1080"]
+			}
+		}
+	],
+	logLevel: "warn",
+	bail: 0,
+	baseUrl: "http://localhost:8080",
+	waitforTimeout: 30000,
+	connectionRetryTimeout: 120000,
+	connectionRetryCount: 3,
+	services: [
+		["qunit", {
+			paths: [
+				"test-resources/ui5/ext/routing/qunit/testsuite.qunit.html"
+			]
+		}]
+	],
+	framework: "mocha",
+	reporters: ["spec"],
+	mochaOpts: {
+		ui: "bdd",
+		timeout: 120000
+	}
+};

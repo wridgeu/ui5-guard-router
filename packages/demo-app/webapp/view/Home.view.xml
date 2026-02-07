@@ -1,0 +1,41 @@
+<mvc:View
+	xmlns:mvc="sap.ui.core.mvc"
+	xmlns="sap.m"
+	controllerName="demo.app.controller.Home">
+	<Page id="homePage" title="Home">
+		<content>
+			<VBox class="sapUiMediumMargin" alignItems="Start">
+				<Title text="UI5 Enhanced Router Demo" level="H2" class="sapUiSmallMarginBottom" />
+
+				<HBox alignItems="Center" class="sapUiSmallMarginBottom">
+					<Label text="Auth Status:" class="sapUiSmallMarginEnd" />
+					<ObjectStatus
+						text="{= ${auth>/isLoggedIn} ? 'Logged In' : 'Logged Out'}"
+						state="{= ${auth>/isLoggedIn} ? 'Success' : 'Error'}"
+						id="authStatus" />
+				</HBox>
+
+				<Button
+					id="toggleLoginBtn"
+					text="{= ${auth>/isLoggedIn} ? 'Logout' : 'Login'}"
+					type="Emphasized"
+					press=".onToggleLogin"
+					class="sapUiSmallMarginBottom" />
+
+				<Title text="Navigation" level="H3" class="sapUiSmallMarginBottom" />
+
+				<Button
+					id="navProtectedBtn"
+					text="Go to Protected Page"
+					press=".onNavToProtected"
+					class="sapUiSmallMarginBottom" />
+
+				<Button
+					id="navForbiddenBtn"
+					text="Go to Forbidden Page (always blocked)"
+					press=".onNavToForbidden"
+					class="sapUiSmallMarginBottom" />
+			</VBox>
+		</content>
+	</Page>
+</mvc:View>

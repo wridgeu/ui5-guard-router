@@ -1,0 +1,23 @@
+{
+	"name": "ui5-ext-routing-monorepo",
+	"private": true,
+	"workspaces": [
+		"packages/*"
+	],
+	"scripts": {
+		"lint": "oxlint packages/ --tsconfig tsconfig.base.json",
+		"typecheck": "tsc --noEmit -p packages/lib/tsconfig.json && tsc --noEmit -p packages/demo-app/tsconfig.json",
+		"start": "npm start --workspace=packages/demo-app",
+		"test:qunit": "npx wdio run packages/lib/test/wdio-qunit.conf.ts",
+		"test:e2e": "npx wdio run packages/demo-app/test/wdio.conf.ts"
+	},
+	"devDependencies": {
+		"@wdio/cli": "^9.0.0",
+		"@wdio/local-runner": "^9.0.0",
+		"@wdio/mocha-framework": "^9.0.0",
+		"@wdio/spec-reporter": "^9.0.0",
+		"wdio-ui5-service": "^3.0.0",
+		"wdio-qunit-service": "^2.0.0",
+		"oxlint": "latest"
+	}
+}

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<library xmlns="http://www.sap.com/sap.ui.library.xsd">
+	<name>ui5.ext.routing</name>
+	<vendor>Marco</vendor>
+	<version>${version}</version>
+	<copyright></copyright>
+	<title>UI5 Router extension with async navigation guards</title>
+	<documentation>Extends sap.m.routing.Router with async navigation guards, running before route matching begins.</documentation>
+	<dependencies>
+		<dependency>
+			<libraryName>sap.ui.core</libraryName>
+		</dependency>
+		<dependency>
+			<libraryName>sap.m</libraryName>
+		</dependency>
+	</dependencies>
+</library>
