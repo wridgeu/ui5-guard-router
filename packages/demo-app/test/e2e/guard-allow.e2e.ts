@@ -25,9 +25,7 @@ describe("Guard allows navigation when logged in", () => {
 
 		// Should be on Protected page
 		await waitForPage("container-demo.app---protectedView--protectedPage", "Protected Page");
-	});
 
-	it("should have the correct hash fragment", async () => {
 		const url = await browser.getUrl();
 		expect(url).toContain("#/protected");
 	});

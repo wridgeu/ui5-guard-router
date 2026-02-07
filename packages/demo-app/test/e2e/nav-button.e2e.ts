@@ -1,8 +1,9 @@
-import { waitForPage, fireEvent } from "./helpers";
+import { waitForPage, fireEvent, resetAuth } from "./helpers";
 
 describe("UI5 in-app nav back button", () => {
 	it("should navigate back to Home via the Page nav button", async () => {
 		await browser.goTo({ sHash: "" });
+		await resetAuth();
 
 		// Login and go to Protected
 		const toggleBtn = await browser.asControl({
@@ -30,6 +31,7 @@ describe("UI5 in-app nav back button", () => {
 
 	it("should allow re-navigation after using nav back button", async () => {
 		await browser.goTo({ sHash: "" });
+		await resetAuth();
 
 		// Login
 		const toggleBtn = await browser.asControl({

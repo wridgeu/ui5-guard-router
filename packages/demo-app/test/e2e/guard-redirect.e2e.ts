@@ -12,9 +12,7 @@ describe("Guard redirects to Home", () => {
 
 		// Should be redirected to Home
 		await waitForPage("container-demo.app---homeView--homePage", "Home");
-	});
 
-	it("should not have forbidden in the URL", async () => {
 		const url = await browser.getUrl();
 		expect(url).not.toContain("#/forbidden");
 	});

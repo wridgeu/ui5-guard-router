@@ -19,9 +19,7 @@ describe("Guard blocks navigation", () => {
 
 		// Should still be on Home (guard redirected)
 		await waitForPage("container-demo.app---homeView--homePage", "Home");
-	});
 
-	it("should not have a hash fragment for the protected route", async () => {
 		const url = await browser.getUrl();
 		expect(url).not.toContain("#/protected");
 	});
