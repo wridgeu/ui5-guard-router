@@ -861,6 +861,507 @@ QUnit.module("Router - _suppressNextParse synchronous assumption", {
 	}
 });
 
+// ============================================================
+// Module: Mixed sync/async guard pipelines
+// ============================================================
+QUnit.module("Router - Mixed sync/async guard pipelines", {
+	beforeEach: function () {
+		initHashChanger();
+		router = createRouter();
+	},
+	afterEach: function () {
+		router.destroy();
+		HashChanger.getInstance().setHash("");
+	}
+});
+
+QUnit.test("Sync global guard allows, async route guard allows", function (assert: Assert) {
+	const done = assert.async();
+
+	router.addGuard(() => true);
+	router.addRouteGuard("protected", async () => {
+		await nextTick(10);
+		return true;
+	});
+	router.initialize();
+
+	router.getRoute("protected")!.attachPatternMatched(() => {
+		assert.ok(true, "Navigation allowed through sync global + async route guard");
+		done();
+	});
+
+	router.navTo("protected");
+});
+
+QUnit.test("Sync global guard allows, async route guard blocks", function (assert: Assert) {
+	const done = assert.async();
+	let routeMatched = false;
+
+	router.addGuard(() => true);
+	router.addRouteGuard("protected", async () => {
+		await nextTick(10);
+		return false;
+	});
+	router.initialize();
+
+	router.getRoute("protected")!.attachPatternMatched(() => {
+		routeMatched = true;
+	});
+
+	router.navTo("protected");
+
+	nextTick(500).then(() => {
+		assert.notOk(routeMatched, "Async route guard blocked after sync global allowed");
+		done();
+	});
+});
+
+QUnit.test("Async global guard allows, sync route guard allows", function (assert: Assert) {
+	const done = assert.async();
+
+	router.addGuard(async () => {
+		await nextTick(10);
+		return true;
+	});
+	router.addRouteGuard("protected", () => true);
+	router.initialize();
+
+	router.getRoute("protected")!.attachPatternMatched(() => {
+		assert.ok(true, "Navigation allowed through async global + sync route guard");
+		done();
+	});
+
+	router.navTo("protected");
+});
+
+QUnit.test("Async global guard allows, sync route guard blocks", function (assert: Assert) {
+	const done = assert.async();
+	let routeMatched = false;
+
+	router.addGuard(async () => {
+		await nextTick(10);
+		return true;
+	});
+	router.addRouteGuard("protected", () => false);
+	router.initialize();
+
+	router.getRoute("protected")!.attachPatternMatched(() => {
+		routeMatched = true;
+	});
+
+	router.navTo("protected");
+
+	nextTick(500).then(() => {
+		assert.notOk(routeMatched, "Sync route guard blocked after async global allowed");
+		done();
+	});
+});
+
+QUnit.test("Async global guard allows, sync route guard redirects", function (assert: Assert) {
+	const done = assert.async();
+
+	router.addGuard(async () => {
+		await nextTick(10);
+		return true;
+	});
+	router.addRouteGuard("forbidden", () => "home");
+	router.initialize();
+
+	// Wait for initialize's async patternMatched to settle
+	const homeRoute = router.getRoute("home")!;
+	homeRoute.attachPatternMatched(function initHandler() {
+		homeRoute.detachPatternMatched(initHandler);
+
+		homeRoute.attachPatternMatched(() => {
+			assert.ok(true, "Sync route guard redirected after async global allowed");
+			done();
+		});
+
+		router.navTo("forbidden");
+	});
+});
+
+// ============================================================
+// Module: Overlapping async navigations (generation counter)
+// ============================================================
+QUnit.module("Router - Overlapping async navigations", {
+	beforeEach: function () {
+		initHashChanger();
+		router = createRouter();
+	},
+	afterEach: function () {
+		router.destroy();
+		HashChanger.getInstance().setHash("");
+	}
+});
+
+QUnit.test("Slower first navigation is superseded by faster second navigation", function (assert: Assert) {
+	const done = assert.async();
+
+	// Slow guard for "protected" (200ms), fast guard for "detail"
+	router.addRouteGuard("protected", async () => {
+		await nextTick(200);
+		return true;
+	});
+	router.addRouteGuard("detail", async () => {
+		await nextTick(10);
+		return true;
+	});
+	router.initialize();
+
+	let protectedMatched = false;
+	router.getRoute("protected")!.attachPatternMatched(() => {
+		protectedMatched = true;
+	});
+
+	// Start slow navigation first, then fast navigation
+	router.navTo("protected");
+	router.navTo("detail", { id: "1" });
+
+	nextTick(500).then(() => {
+		assert.notOk(protectedMatched, "Slow first navigation was superseded");
+		assert.strictEqual(
+			HashChanger.getInstance().getHash(),
+			"detail/1",
+			"Hash reflects the second (winning) navigation"
+		);
+		done();
+	});
+});
+
+QUnit.test("Superseded async guard result does not apply", function (assert: Assert) {
+	const done = assert.async();
+
+	let slowGuardCompleted = false;
+	// Slow global guard that takes 200ms
+	router.addGuard(async () => {
+		await nextTick(200);
+		slowGuardCompleted = true;
+		return "forbidden"; // This redirect should be discarded
+	});
+	router.initialize();
+
+	// First navigation triggers slow guard
+	router.navTo("protected");
+
+	// Remove guard and navigate again before first resolves
+	nextTick(50).then(() => {
+		router._globalGuards.length = 0;
+		router.navTo("detail", { id: "2" });
+
+		nextTick(500).then(() => {
+			assert.ok(slowGuardCompleted, "Slow guard did complete (but result discarded)");
+			assert.strictEqual(
+				HashChanger.getInstance().getHash(),
+				"detail/2",
+				"Second navigation won, redirect from first was discarded"
+			);
+			done();
+		});
+	});
+});
+
+// ============================================================
+// Module: Guard context across navigations
+// ============================================================
+QUnit.module("Router - Guard context across navigations", {
+	beforeEach: function () {
+		initHashChanger();
+		router = createRouter();
+	},
+	afterEach: function () {
+		router.destroy();
+		HashChanger.getInstance().setHash("");
+	}
+});
+
+QUnit.test("Guard context has correct fromRoute and fromHash after prior navigation", function (assert: Assert) {
+	const done = assert.async();
+	let capturedContext: GuardContext | null = null;
+
+	router.initialize();
+
+	// Navigate to detail/42 first (no guards)
+	router.getRoute("detail")!.attachPatternMatched(function firstNav() {
+		router.getRoute("detail")!.detachPatternMatched(firstNav);
+
+		// Now add a guard that captures context
+		router.addGuard((context: GuardContext) => {
+			capturedContext = context;
+			return true;
+		});
+
+		router.getRoute("protected")!.attachPatternMatched(() => {
+			assert.ok(capturedContext, "Context was captured");
+			assert.strictEqual(capturedContext!.fromRoute, "detail", "fromRoute is correct");
+			assert.strictEqual(capturedContext!.fromHash, "detail/42", "fromHash is correct");
+			assert.strictEqual(capturedContext!.toRoute, "protected", "toRoute is correct");
+			assert.strictEqual(capturedContext!.toHash, "protected", "toHash is correct");
+			done();
+		});
+
+		router.navTo("protected");
+	});
+
+	router.navTo("detail", { id: "42" });
+});
+
+QUnit.test("Guard context fromRoute/fromHash are empty on initial navigation", function (assert: Assert) {
+	const done = assert.async();
+	let capturedContext: GuardContext | null = null;
+
+	router.addGuard((context: GuardContext) => {
+		capturedContext = context;
+		return true;
+	});
+	router.initialize();
+
+	router.getRoute("home")!.attachPatternMatched(() => {
+		assert.ok(capturedContext, "Context was captured on init");
+		assert.strictEqual(capturedContext!.fromRoute, "", "fromRoute is empty on initial nav");
+		assert.strictEqual(capturedContext!.fromHash, "", "fromHash is empty on initial nav");
+		done();
+	});
+});
+
+// ============================================================
+// Module: Async guard edge cases
+// ============================================================
+QUnit.module("Router - Async guard edge cases", {
+	beforeEach: function () {
+		initHashChanger();
+		router = createRouter();
+	},
+	afterEach: function () {
+		router.destroy();
+		HashChanger.getInstance().setHash("");
+	}
+});
+
+QUnit.test("Async route-specific guard throwing error blocks navigation", function (assert: Assert) {
+	const done = assert.async();
+	let routeMatched = false;
+
+	router.addRouteGuard("protected", async () => {
+		await nextTick(10);
+		throw new Error("Async route guard error");
+	});
+	router.initialize();
+
+	router.getRoute("protected")!.attachPatternMatched(() => {
+		routeMatched = true;
+	});
+
+	router.navTo("protected");
+
+	nextTick(500).then(() => {
+		assert.notOk(routeMatched, "Async route guard error blocked navigation");
+		done();
+	});
+});
+
+QUnit.test("Async route-specific guard returning rejected promise blocks navigation", function (assert: Assert) {
+	const done = assert.async();
+	let routeMatched = false;
+
+	router.addRouteGuard("protected", () => {
+		return Promise.reject(new Error("Route guard rejected"));
+	});
+	router.initialize();
+
+	router.getRoute("protected")!.attachPatternMatched(() => {
+		routeMatched = true;
+	});
+
+	router.navTo("protected");
+
+	nextTick(500).then(() => {
+		assert.notOk(routeMatched, "Rejected route guard promise blocked navigation");
+		done();
+	});
+});
+
+QUnit.test("Multiple async guards - first rejection short-circuits remaining", function (assert: Assert) {
+	const done = assert.async();
+	const order: number[] = [];
+
+	router.addGuard(async () => {
+		await nextTick(10);
+		order.push(1);
+		return true;
+	});
+	router.addGuard(async () => {
+		await nextTick(10);
+		order.push(2);
+		return false;
+	});
+	router.addGuard(async () => {
+		await nextTick(10);
+		order.push(3);
+		return true;
+	});
+	router.initialize();
+
+	// Wait for initialize's parse to settle
+	nextTick(200).then(() => {
+		order.length = 0;
+		router.navTo("protected");
+
+		nextTick(500).then(() => {
+			assert.deepEqual(order, [1, 2], "Third guard was short-circuited after second rejected");
+			done();
+		});
+	});
+});
+
+QUnit.test("Async route guard redirects", function (assert: Assert) {
+	const done = assert.async();
+
+	router.addRouteGuard("protected", async () => {
+		await nextTick(10);
+		return "home";
+	});
+	router.initialize();
+
+	// Wait for init
+	const homeRoute = router.getRoute("home")!;
+	homeRoute.attachPatternMatched(function initHandler() {
+		homeRoute.detachPatternMatched(initHandler);
+
+		homeRoute.attachPatternMatched(() => {
+			assert.ok(true, "Async route guard redirected to home");
+			done();
+		});
+
+		router.navTo("protected");
+	});
+});
+
+QUnit.test("Guard returning null is treated as block", function (assert: Assert) {
+	const done = assert.async();
+	let routeMatched = false;
+
+	router.addGuard((() => null) as any);
+	router.initialize();
+
+	router.getRoute("protected")!.attachPatternMatched(() => {
+		routeMatched = true;
+	});
+
+	router.navTo("protected");
+
+	nextTick(500).then(() => {
+		assert.notOk(routeMatched, "Null guard return treated as block");
+		done();
+	});
+});
+
+QUnit.test("Guard returning undefined is treated as block", function (assert: Assert) {
+	const done = assert.async();
+	let routeMatched = false;
+
+	router.addGuard((() => undefined) as any);
+	router.initialize();
+
+	router.getRoute("protected")!.attachPatternMatched(() => {
+		routeMatched = true;
+	});
+
+	router.navTo("protected");
+
+	nextTick(500).then(() => {
+		assert.notOk(routeMatched, "Undefined guard return treated as block");
+		done();
+	});
+});
+
+// ============================================================
+// Module: Rapid sequential navigations
+// ============================================================
+QUnit.module("Router - Rapid sequential navigations", {
+	beforeEach: function () {
+		initHashChanger();
+		router = createRouter();
+	},
+	afterEach: function () {
+		router.destroy();
+		HashChanger.getInstance().setHash("");
+	}
+});
+
+QUnit.test("Rapid sync navigations - last one wins", function (assert: Assert) {
+	const done = assert.async();
+	const matchedRoutes: string[] = [];
+
+	router.addGuard(() => true);
+	router.initialize();
+
+	router.attachRouteMatched((event: any) => {
+		matchedRoutes.push(event.getParameter("name"));
+	});
+
+	// Wait for init to settle, then fire rapid navigations
+	nextTick(100).then(() => {
+		matchedRoutes.length = 0;
+		router.navTo("protected");
+		router.navTo("forbidden");
+		router.navTo("detail", { id: "1" });
+
+		nextTick(500).then(() => {
+			// With sync guards, only the last navigation should reach the route
+			// because same-hash dedup and the sync nature mean intermediate
+			// navTo calls are processed but superseded
+			const lastMatched = matchedRoutes[matchedRoutes.length - 1];
+			assert.strictEqual(lastMatched, "detail", "Last rapid navigation won");
+			done();
+		});
+	});
+});
+
+QUnit.test("Rapid async navigations - only last navigation settles", function (assert: Assert) {
+	const done = assert.async();
+	const matchedRoutes: string[] = [];
+
+	router.addGuard(async () => {
+		await nextTick(50);
+		return true;
+	});
+	router.initialize();
+
+	router.attachRouteMatched((event: any) => {
+		matchedRoutes.push(event.getParameter("name"));
+	});
+
+	// Wait for init to settle, then fire rapid navigations
+	nextTick(200).then(() => {
+		matchedRoutes.length = 0;
+		router.navTo("protected");
+		router.navTo("forbidden");
+		router.navTo("detail", { id: "1" });
+
+		nextTick(500).then(() => {
+			// With async guards, generation counter discards stale results
+			assert.strictEqual(matchedRoutes.length, 1, "Only one navigation settled");
+			assert.strictEqual(matchedRoutes[0], "detail", "The last navigation won");
+			done();
+		});
+	});
+});
+
+// ============================================================
+// Module: _suppressNextParse synchronous assumption
+// ============================================================
+QUnit.module("Router - _suppressNextParse synchronous assumption", {
+	beforeEach: function () {
+		initHashChanger();
+		router = createRouter();
+	},
+	afterEach: function () {
+		router.destroy();
+		HashChanger.getInstance().setHash("");
+	}
+});
+
 QUnit.test("replaceHash fires hashChanged synchronously (validates _suppressNextParse mechanism)", function (assert: Assert) {
 	router.initialize();
 

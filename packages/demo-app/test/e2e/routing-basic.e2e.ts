@@ -1,4 +1,4 @@
-import { waitForPage, fireEvent } from "./helpers";
+import { waitForPage, fireEvent, resetAuth } from "./helpers";
 
 describe("Basic routing (no guard interaction)", () => {
 	it("should load Home view at root hash", async () => {
@@ -14,6 +14,8 @@ describe("Basic routing (no guard interaction)", () => {
 	});
 
 	it("should navigate to Protected when logged in", async () => {
+		await resetAuth();
+
 		// Login first
 		const toggleBtn = await browser.asControl({
 			selector: { id: "container-demo.app---homeView--toggleLoginBtn" }
@@ -30,16 +32,21 @@ describe("Basic routing (no guard interaction)", () => {
 	});
 
 	it("should navigate back to Home", async () => {
+		// Reset state from prior test (leaves us logged in on Protected)
+		await resetAuth();
 		await browser.goTo({ sHash: "" });
+		await waitForPage("container-demo.app---homeView--homePage", "Home");
 
-		// Login and navigate to Protected first
+		// Login and navigate to Protected
 		const toggleBtn = await browser.asControl({
-			selector: { id: "container-demo.app---homeView--toggleLoginBtn" }
+			selector: { id: "container-demo.app---homeView--toggleLoginBtn" },
+			forceSelect: true
 		});
 		await toggleBtn.press();
 
 		const navBtn = await browser.asControl({
-			selector: { id: "container-demo.app---homeView--navProtectedBtn" }
+			selector: { id: "container-demo.app---homeView--navProtectedBtn" },
+			forceSelect: true
 		});
 		await navBtn.press();
 		await waitForPage("container-demo.app---protectedView--protectedPage", "Protected Page");

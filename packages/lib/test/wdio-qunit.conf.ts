@@ -20,7 +20,8 @@ export const config: WebdriverIO.Config = {
 	services: [
 		["qunit", {
 			paths: [
-				"test-resources/ui5/ext/routing/qunit/testsuite.qunit.html"
+				"resources/sap/ui/test/starter/Test.qunit.html?testsuite=test-resources/ui5/ext/routing/qunit/testsuite.qunit&test=Router",
+				"resources/sap/ui/test/starter/Test.qunit.html?testsuite=test-resources/ui5/ext/routing/qunit/testsuite.qunit&test=NativeRouterCompat"
 			]
 		}]
 	],

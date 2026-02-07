@@ -8,11 +8,11 @@ const HistoryDirection = coreLibrary.routing.HistoryDirection;
 const LOG_COMPONENT = "ui5.ext.routing.Router";
 
 function isGuardRedirect(value: GuardResult): value is GuardRedirect {
-	return typeof value === "object" && typeof value.route === "string";
+	return typeof value === "object" && value !== null && typeof value.route === "string";
 }
 
 function isThenable(value: GuardResult | Promise<GuardResult>): value is Promise<GuardResult> {
-	return typeof value === "object" && typeof (value as Promise<GuardResult>).then === "function";
+	return typeof value === "object" && value !== null && typeof (value as Promise<GuardResult>).then === "function";
 }
 
 /**
@@ -151,6 +151,11 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 		const routeInfo = this.getRouteInfoByHash(newHash);
 		const toRoute = routeInfo ? routeInfo.name : "";
 
+		// Invalidate any pending async guard results. Every new parse
+		// (except suppressed and redirecting, handled above) must bump
+		// the generation so stale async guards are discarded.
+		const generation = ++this._parseGeneration;
+
 		// No guards apply to this navigation → fast path
 		if (this._globalGuards.length === 0
 			&& (!toRoute || !this._routeGuards.has(toRoute))) {
@@ -172,7 +177,6 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 
 		if (isThenable(result)) {
 			// At least one guard returned a Promise → fall back to async path
-			const generation = ++this._parseGeneration;
 			result.then((guardResult: GuardResult) => {
 				if (generation !== this._parseGeneration) {
 					Log.debug("Async guard result discarded (superseded by newer navigation)", newHash, LOG_COMPONENT);
