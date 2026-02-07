@@ -5,10 +5,13 @@
 		"packages/*"
 	],
 	"scripts": {
+		"clean": "npm run clean --workspaces",
 		"lint": "oxlint packages/ --tsconfig tsconfig.base.json",
+		"lint:fix": "oxlint packages/ --tsconfig tsconfig.base.json --fix",
 		"typecheck": "tsc --noEmit -p packages/lib/tsconfig.json && tsc --noEmit -p packages/demo-app/tsconfig.json",
 		"build": "npm run build --workspace=packages/lib",
 		"start": "npm start --workspace=packages/demo-app",
+		"start:lib": "npm start --workspace=packages/lib",
 		"test": "npm run test:qunit && npm run test:e2e",
 		"test:qunit": "npx wdio run packages/lib/test/wdio-qunit.conf.ts",
 		"test:e2e": "npx wdio run packages/demo-app/test/wdio.conf.ts"

@@ -5,8 +5,10 @@
 	"description": "Demo app for ui5-ext-routing library",
 	"type": "module",
 	"scripts": {
+		"clean": "npx rimraf dist .ui5",
 		"start": "ui5 serve --open /index.html",
 		"build": "ui5 build",
+		"test": "echo \"Run tests from monorepo root: npm run test:e2e\" && exit 1",
 		"typecheck": "tsc --noEmit"
 	},
 	"devDependencies": {
