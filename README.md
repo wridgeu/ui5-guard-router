@@ -217,19 +217,40 @@ router.addGuard(logGuard);
 router.removeGuard(logGuard);
 ```
 
-### Native alternative: Fiori Launchpad dirty flag
+### Native alternative: Fiori Launchpad data loss prevention
 
-If your app runs inside SAP Fiori Launchpad, the Launchpad provides built-in data loss protection via `sap.ushell.Container.setDirtyFlag()`. This shows a native warning dialog when users attempt to navigate away from the Launchpad (home button, browser back, refresh) — but it does **not** cover in-app route changes:
+If your app runs inside SAP Fiori Launchpad (FLP), the shell provides built-in data loss protection through two public APIs on `sap.ushell.Container`:
+
+**`setDirtyFlag(bDirty)`** (since 1.27.0) — simple boolean flag. When set to `true`, FLP shows a browser `confirm()` dialog when the user attempts cross-app navigation (home button, other tiles), browser back/forward out of the app, or page refresh/close:
 
 ```typescript
-// Set when user modifies data
-sap.ushell.Container.setDirtyFlag(true);
-
-// Clear after save
-sap.ushell.Container.setDirtyFlag(false);
+sap.ushell.Container.setDirtyFlag(true); // mark unsaved changes
+sap.ushell.Container.setDirtyFlag(false); // clear after save
 ```
 
-For in-app navigation between routes, you still need leave guards as shown above. The two approaches are complementary: leave guards handle in-app routing, while `setDirtyFlag` handles Launchpad-level navigation.
+**`registerDirtyStateProvider(fn)`** (since 1.31.0) — registers a callback that FLP calls during navigation to dynamically determine dirty state. The callback receives a `NavigationContext` with `isCrossAppNavigation` (boolean) and `innerAppRoute` (string), allowing the provider to distinguish between cross-app and in-app navigation:
+
+```typescript
+const dirtyProvider = (navigationContext) => {
+	if (navigationContext?.isCrossAppNavigation) {
+		return formModel.getProperty("/isDirty");
+	}
+	return false; // let in-app routing handle it
+};
+sap.ushell.Container.registerDirtyStateProvider(dirtyProvider);
+
+// Clean up (since 1.67.0)
+sap.ushell.Container.deregisterDirtyStateProvider(dirtyProvider);
+```
+
+> **Note**: `getDirtyFlag()` is deprecated since UI5 1.120. FLP internally uses `getDirtyFlagsAsync()` (private) which combines the flag with all registered providers. The synchronous `getDirtyFlag()` still works but should not be relied upon in new code.
+
+**How the two approaches complement each other**: FLP's data loss protection operates at the shell navigation filter level — it intercepts navigation _before_ the hash change reaches your app's router. Leave guards operate _inside_ your app's router, intercepting route-to-route navigation. For complete coverage:
+
+- Use **leave guards** for in-app route changes (e.g., navigating from an edit form to a list within your app)
+- Use **`setDirtyFlag`** or **`registerDirtyStateProvider`** for FLP-level navigation (cross-app, browser close, home button)
+
+See [FLP Dirty State Research](docs/research-flp-dirty-state.md) for a detailed analysis of the FLP internals.
 
 ## Guard return values
 
