@@ -8,6 +8,11 @@ UI5 Router extension with async navigation guards. Drop-in replacement for `sap.
 
 > Born from [SAP/openui5#3411](https://github.com/SAP/openui5/issues/3411), an open request since 2021 for native navigation guard support in UI5. Track the UI5 team's progress there.
 
+> [!IMPORTANT]
+> **Minimum UI5 version: 1.118**
+>
+> The library uses [`sap.ui.core.Lib`](https://sdk.openui5.org/api/sap.ui.core.Lib) for library initialization, which was introduced in **UI5 1.118**. The Router itself only depends on APIs available since 1.75 (notably [`getRouteInfoByHash`](https://sdk.openui5.org/api/sap.ui.core.routing.Router%23methods/getRouteInfoByHash)), but the library packaging sets the effective floor. Developed and tested against OpenUI5 1.144.0.
+
 ## Why
 
 UI5's native router has no way to block or redirect navigation before views are displayed. Developers resort to scattering guard logic across `attachPatternMatched` callbacks, which:
@@ -43,18 +48,18 @@ Add the library dependency and set the router class:
 
 ```json
 {
-  "sap.ui5": {
-    "dependencies": {
-      "libs": {
-        "ui5.ext.routing": {}
-      }
-    },
-    "routing": {
-      "config": {
-        "routerClass": "ui5.ext.routing.Router"
-      }
-    }
-  }
+	"sap.ui5": {
+		"dependencies": {
+			"libs": {
+				"ui5.ext.routing": {}
+			}
+		},
+		"routing": {
+			"config": {
+				"routerClass": "ui5.ext.routing.Router"
+			}
+		}
+	}
 }
 ```
 
@@ -67,30 +72,30 @@ import UIComponent from "sap/ui/core/UIComponent";
 import type { GuardRouter } from "ui5/ext/routing/types";
 
 export default class Component extends UIComponent {
-  static metadata = {
-    manifest: "json",
-    interfaces: ["sap.ui.core.IAsyncContentCreation"],
-  };
+	static metadata = {
+		manifest: "json",
+		interfaces: ["sap.ui.core.IAsyncContentCreation"],
+	};
 
-  init(): void {
-    super.init();
-    const router = this.getRouter() as unknown as GuardRouter;
+	init(): void {
+		super.init();
+		const router = this.getRouter() as unknown as GuardRouter;
 
-    // Route-specific guard -- redirects to "home" when not logged in
-    router.addRouteGuard("protected", (context) => {
-      return isLoggedIn() ? true : "home";
-    });
+		// Route-specific guard -- redirects to "home" when not logged in
+		router.addRouteGuard("protected", (context) => {
+			return isLoggedIn() ? true : "home";
+		});
 
-    // Global guard -- runs for every navigation
-    router.addGuard((context) => {
-      if (context.toRoute === "admin" && !isAdmin()) {
-        return "home";
-      }
-      return true;
-    });
+		// Global guard -- runs for every navigation
+		router.addGuard((context) => {
+			if (context.toRoute === "admin" && !isAdmin()) {
+				return "home";
+			}
+			return true;
+		});
 
-    router.initialize();
-  }
+		router.initialize();
+	}
 }
 ```
 
@@ -106,10 +111,10 @@ import JSONModel from "sap/ui/model/json/JSONModel";
 import type { GuardFn, GuardContext, GuardResult } from "ui5/ext/routing/types";
 
 export function createAuthGuard(authModel: JSONModel): GuardFn {
-  return (context: GuardContext): GuardResult => {
-    const isLoggedIn = authModel.getProperty("/isLoggedIn");
-    return isLoggedIn ? true : "home";
-  };
+	return (context: GuardContext): GuardResult => {
+		const isLoggedIn = authModel.getProperty("/isLoggedIn");
+		return isLoggedIn ? true : "home";
+	};
 }
 
 export const forbiddenGuard: GuardFn = () => "home";
@@ -129,11 +134,11 @@ router.addRouteGuard("forbidden", forbiddenGuard);
 
 ```typescript
 router.addRouteGuard("dashboard", async (context) => {
-  const res = await fetch(`/api/access/${context.toRoute}`, {
-    signal: context.signal, // cancelled automatically on newer navigation
-  });
-  const { allowed } = await res.json();
-  return allowed ? true : "forbidden";
+	const res = await fetch(`/api/access/${context.toRoute}`, {
+		signal: context.signal, // cancelled automatically on newer navigation
+	});
+	const { allowed } = await res.json();
+	return allowed ? true : "forbidden";
 });
 ```
 
@@ -141,15 +146,69 @@ router.addRouteGuard("dashboard", async (context) => {
 
 ```typescript
 router.addGuard((context) => {
-  if (context.toRoute === "old-detail") {
-    return {
-      route: "detail",
-      parameters: { id: context.toArguments.id },
-    };
-  }
-  return true;
+	if (context.toRoute === "old-detail") {
+		return {
+			route: "detail",
+			parameters: { id: context.toArguments.id },
+		};
+	}
+	return true;
 });
 ```
+
+### Leave guard (unsaved changes)
+
+Leave guards run when navigating **away from** a route. They return only a boolean — no redirects. Register them from a controller where you have access to the view's model:
+
+```typescript
+// guards.ts
+import JSONModel from "sap/ui/model/json/JSONModel";
+import type { LeaveGuardFn, GuardContext } from "ui5/ext/routing/types";
+
+export function createDirtyFormGuard(formModel: JSONModel): LeaveGuardFn {
+	return (context: GuardContext): boolean => {
+		return !formModel.getProperty("/isDirty");
+	};
+}
+```
+
+```typescript
+// EditOrder.controller.ts
+import type { GuardRouter, LeaveGuardFn } from "ui5/ext/routing/types";
+import { createDirtyFormGuard } from "../guards";
+
+export default class EditOrderController extends Controller {
+	private _leaveGuard!: LeaveGuardFn;
+
+	onInit(): void {
+		const formModel = new JSONModel({ isDirty: false });
+		this.getView()!.setModel(formModel, "form");
+
+		const router = (this.getOwnerComponent() as UIComponent).getRouter() as unknown as GuardRouter;
+		this._leaveGuard = createDirtyFormGuard(formModel);
+		router.addLeaveGuard("editOrder", this._leaveGuard);
+	}
+
+	onExit(): void {
+		const router = (this.getOwnerComponent() as UIComponent).getRouter() as unknown as GuardRouter;
+		router.removeLeaveGuard("editOrder", this._leaveGuard);
+	}
+}
+```
+
+> [!TIP]
+> **User feedback on blocked navigation**: When a leave guard blocks, the router silently restores the previous hash — there is no built-in confirmation dialog or toast. In production, show a `sap.m.MessageBox.confirm()` inside your leave guard (returning the user's choice as a `Promise<boolean>`) so the block is visible. The library intentionally stays low-level to avoid opinionated UX decisions.
+
+### Object form (enter + leave in one call)
+
+```typescript
+router.addRouteGuard("editOrder", {
+	beforeEnter: authGuard,
+	beforeLeave: dirtyFormGuard,
+});
+```
+
+When passing a function directly, it registers as an enter guard (backward compatible). When passing an object, `beforeEnter` and `beforeLeave` are optional — provide either or both.
 
 ### Dynamic guard registration
 
@@ -157,8 +216,8 @@ Guards can be added or removed at any point during the router's lifetime:
 
 ```typescript
 const logGuard: GuardFn = (ctx) => {
-  console.log(`Navigation: ${ctx.fromRoute} → ${ctx.toRoute}`);
-  return true;
+	console.log(`Navigation: ${ctx.fromRoute} → ${ctx.toRoute}`);
+	return true;
 };
 
 router.addGuard(logGuard);
@@ -166,45 +225,96 @@ router.addGuard(logGuard);
 router.removeGuard(logGuard);
 ```
 
+### Native alternative: Fiori Launchpad data loss prevention
+
+If your app runs inside SAP Fiori Launchpad (FLP), the shell provides built-in data loss protection through two public APIs on `sap.ushell.Container`:
+
+**`setDirtyFlag(bDirty)`** (since 1.27.0) — simple boolean flag. When set to `true`, FLP shows a browser `confirm()` dialog when the user attempts cross-app navigation (home button, other tiles), browser back/forward out of the app, or page refresh/close:
+
+```typescript
+sap.ushell.Container.setDirtyFlag(true); // mark unsaved changes
+sap.ushell.Container.setDirtyFlag(false); // clear after save
+```
+
+**`registerDirtyStateProvider(fn)`** (since 1.31.0) — registers a callback that FLP calls during navigation to dynamically determine dirty state. The callback receives a `NavigationContext` with `isCrossAppNavigation` (boolean) and `innerAppRoute` (string), allowing the provider to distinguish between cross-app and in-app navigation:
+
+```typescript
+const dirtyProvider = (navigationContext) => {
+	if (navigationContext?.isCrossAppNavigation) {
+		return formModel.getProperty("/isDirty");
+	}
+	return false; // let in-app routing handle it
+};
+sap.ushell.Container.registerDirtyStateProvider(dirtyProvider);
+
+// Clean up (since 1.67.0)
+sap.ushell.Container.deregisterDirtyStateProvider(dirtyProvider);
+```
+
+> **Note**: `getDirtyFlag()` is deprecated since UI5 1.120. FLP internally uses `getDirtyFlagsAsync()` (private) which combines the flag with all registered providers. The synchronous `getDirtyFlag()` still works but should not be relied upon in new code.
+
+**How the two approaches complement each other**: FLP's data loss protection operates at the shell navigation filter level — it intercepts navigation _before_ the hash change reaches your app's router. Leave guards operate _inside_ your app's router, intercepting route-to-route navigation. For complete coverage:
+
+- Use **leave guards** for in-app route changes (e.g., navigating from an edit form to a list within your app)
+- Use **`setDirtyFlag`** or **`registerDirtyStateProvider`** for FLP-level navigation (cross-app, browser close, home button)
+
+See [FLP Dirty State Research](docs/research-flp-dirty-state.md) for a detailed analysis of the FLP internals.
+
 ## Guard return values
 
-| Return value | Effect |
-| --- | --- |
-| `true` | Allow navigation |
-| `false` | Block (stay on current route, no history entry) |
-| `"routeName"` | Redirect to named route (replaces history, no extra entry) |
-| `{ route, parameters }` | Redirect with route parameters |
-| anything else (`null`, `undefined`) | Treated as block |
+### Enter guards (`addRouteGuard`, `addGuard`)
+
+| Return value                                   | Effect                                                              |
+| ---------------------------------------------- | ------------------------------------------------------------------- |
+| `true`                                         | Allow navigation                                                    |
+| `false`                                        | Block (stay on current route, no history entry)                     |
+| `"routeName"`                                  | Redirect to named route (replaces history, no extra entry)          |
+| `{ route, parameters?, componentTargetInfo? }` | Redirect with route parameters (and optional component target info) |
+| anything else (`null`, `undefined`)            | Treated as block                                                    |
 
 Only strict `true` allows navigation. This prevents accidental allows from truthy coercion.
+
+### Leave guards (`addLeaveGuard`)
+
+| Return value                      | Effect                                          |
+| --------------------------------- | ----------------------------------------------- |
+| `true`                            | Allow leaving the current route                 |
+| `false` (or any non-`true` value) | Block (stay on current route, no history entry) |
+
+Leave guards cannot redirect. They answer the binary question "can I leave?" — use enter guards on the target route for redirection logic.
 
 ## Guard context
 
 Every guard receives a `GuardContext`:
 
-| Property | Type | Description |
-| --- | --- | --- |
-| `toRoute` | `string` | Target route name (empty if no match) |
-| `toHash` | `string` | Raw hash being navigated to |
-| `toArguments` | `Record<string, string>` | Parsed route parameters |
-| `fromRoute` | `string` | Current route name (empty on first nav) |
-| `fromHash` | `string` | Current hash |
-| `signal` | `AbortSignal` | Aborted when a newer navigation supersedes this one |
+| Property      | Type                                               | Description                                                    |
+| ------------- | -------------------------------------------------- | -------------------------------------------------------------- |
+| `toRoute`     | `string`                                           | Target route name (empty if no match)                          |
+| `toHash`      | `string`                                           | Raw hash being navigated to                                    |
+| `toArguments` | `Record<string, string \| Record<string, string>>` | Parsed route parameters (nested records for component targets) |
+| `fromRoute`   | `string`                                           | Current route name (empty on first nav)                        |
+| `fromHash`    | `string`                                           | Current hash                                                   |
+| `signal`      | `AbortSignal`                                      | Aborted when a newer navigation supersedes this one            |
 
 ## Guard execution order
 
-1. **Global guards** run first, in registration order
-2. **Route-specific guards** run next, in registration order
-3. The pipeline **short-circuits** at the first non-`true` result
+1. **Leave guards** for the current route run first, in registration order
+2. **Global enter guards** run next, in registration order
+3. **Route-specific enter guards** for the target route run last, in registration order
+4. The pipeline **short-circuits** at the first non-`true` result — if a leave guard blocks, enter guards never run
 
 ## API
 
-| Method | Description |
-| --- | --- |
-| `addGuard(fn)` | Register a global guard (runs for every navigation) |
-| `removeGuard(fn)` | Remove a global guard |
-| `addRouteGuard(routeName, fn)` | Register a guard for a specific route |
-| `removeRouteGuard(routeName, fn)` | Remove a route-specific guard |
+| Method                                                        | Description                                               |
+| ------------------------------------------------------------- | --------------------------------------------------------- |
+| `addGuard(fn)`                                                | Register a global enter guard (runs for every navigation) |
+| `removeGuard(fn)`                                             | Remove a global enter guard                               |
+| `addRouteGuard(routeName, fn)`                                | Register an enter guard for a specific route              |
+| `addRouteGuard(routeName, { beforeEnter?, beforeLeave? })`    | Register enter and/or leave guards via object form        |
+| `removeRouteGuard(routeName, fn)`                             | Remove an enter guard                                     |
+| `removeRouteGuard(routeName, { beforeEnter?, beforeLeave? })` | Remove enter and/or leave guards via object form          |
+| `addLeaveGuard(routeName, fn)`                                | Register a leave guard (runs when leaving the route)      |
+| `removeLeaveGuard(routeName, fn)`                             | Remove a leave guard                                      |
 
 All methods return `this` for chaining.
 
@@ -229,12 +339,12 @@ In practice, redirect targets are typically "safe" routes like `home` or `login`
 
 ```typescript
 router.addRouteGuard("dashboard", (context) => {
-  if (!hasPermission()) {
-    // Instead of redirecting to "profile" and relying on its guard,
-    // check the profile condition here
-    return isOnboarded() ? "profile" : "onboarding";
-  }
-  return true;
+	if (!hasPermission()) {
+		// Instead of redirecting to "profile" and relying on its guard,
+		// check the profile condition here
+		return isOnboarded() ? "profile" : "onboarding";
+	}
+	return true;
 });
 ```
 
@@ -244,7 +354,7 @@ When a guard returns a Promise (e.g., a `fetch` call to check permissions), the 
 
 This does **not** affect sync guards, which resolve in the same tick as the hash change (the URL flicker is imperceptible).
 
-**Why the router doesn't handle this**: UI5's `HashChanger` updates the URL and fires `hashChanged` *before* `parse()` is called. The router cannot prevent the URL change — it can only react to it. Frameworks like Vue Router and Angular Router avoid this by controlling the URL update themselves (calling `history.pushState` only after guards resolve), but UI5's architecture doesn't allow this without intercepting at the HashChanger level, which is globally scoped and fragile.
+**Why the router doesn't handle this**: UI5's `HashChanger` updates the URL and fires `hashChanged` _before_ `parse()` is called. The router cannot prevent the URL change — it can only react to it. Frameworks like Vue Router and Angular Router avoid this by controlling the URL update themselves (calling `history.pushState` only after guards resolve), but UI5's architecture doesn't allow this without intercepting at the HashChanger level, which is globally scoped and fragile.
 
 **Application-level solutions**:
 
@@ -252,17 +362,17 @@ Show a busy indicator while async guards resolve. This communicates to the user 
 
 ```typescript
 router.addRouteGuard("dashboard", async (context) => {
-  const app = rootView.byId("app") as App;
-  app.setBusy(true);
-  try {
-    const res = await fetch(`/api/access/${context.toRoute}`, {
-      signal: context.signal,
-    });
-    const { allowed } = await res.json();
-    return allowed ? true : "home";
-  } finally {
-    app.setBusy(false);
-  }
+	const app = rootView.byId("app") as App;
+	app.setBusy(true);
+	try {
+		const res = await fetch(`/api/access/${context.toRoute}`, {
+			signal: context.signal,
+		});
+		const { allowed } = await res.json();
+		return allowed ? true : "home";
+	} finally {
+		app.setBusy(false);
+	}
 });
 ```
 
@@ -293,17 +403,12 @@ npm start         # demo app at http://localhost:8080/index.html
 ### Tests
 
 ```bash
-# QUnit (66 unit tests) -- needs the library server
-npm run start:lib          # Terminal 1
-npm run test:qunit         # Terminal 2
-
-# E2E (18 integration tests) -- needs the demo-app server
-npm start                  # Terminal 1
-npm run test:e2e           # Terminal 2
-
-# Or run all (with demo-app server running)
-npm test
+npm test              # run all tests (QUnit + E2E, sequentially)
+npm run test:qunit    # 98 unit tests only
+npm run test:e2e      # 22 integration tests only
 ```
+
+Each test command automatically starts and stops the appropriate server (port 8080).
 
 ### Quality checks
 

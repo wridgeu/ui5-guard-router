@@ -6,6 +6,7 @@
 	"type": "module",
 	"scripts": {
 		"clean": "rimraf dist .ui5",
+		"serve": "ui5 serve",
 		"start": "ui5 serve --open /index.html",
 		"build": "ui5 build",
 		"test": "echo \"Run tests from monorepo root: npm run test:e2e\" && exit 1",

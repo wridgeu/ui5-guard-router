@@ -1,7 +1,16 @@
 import MobileRouter from "sap/m/routing/Router";
 import Log from "sap/base/Log";
 import coreLibrary from "sap/ui/core/library";
-import type { GuardFn, GuardContext, GuardResult, GuardRedirect, RouterInternal } from "./types";
+import type {
+	GuardFn,
+	GuardContext,
+	GuardResult,
+	GuardRedirect,
+	GuardRouter,
+	LeaveGuardFn,
+	RouteGuardConfig,
+	RouterInternal,
+} from "./types";
 
 const HistoryDirection = coreLibrary.routing.HistoryDirection;
 
@@ -11,8 +20,29 @@ function isGuardRedirect(value: GuardResult): value is GuardRedirect {
 	return typeof value === "object" && value !== null && typeof value.route === "string";
 }
 
-function isPromise(value: GuardResult | Promise<GuardResult>): value is Promise<GuardResult> {
+function isPromiseLike<T>(value: T | Promise<T>): value is Promise<T> {
 	return value instanceof Promise;
+}
+
+function isRouteGuardConfig(guard: GuardFn | RouteGuardConfig): guard is RouteGuardConfig {
+	return typeof guard !== "function";
+}
+
+function addToGuardMap<T>(map: Map<string, T[]>, key: string, guard: T): void {
+	let guards = map.get(key);
+	if (!guards) {
+		guards = [];
+		map.set(key, guards);
+	}
+	guards.push(guard);
+}
+
+function removeFromGuardMap<T>(map: Map<string, T[]>, key: string, guard: T): void {
+	const guards = map.get(key);
+	if (!guards) return;
+	const index = guards.indexOf(guard);
+	if (index !== -1) guards.splice(index, 1);
+	if (guards.length === 0) map.delete(key);
 }
 
 /**
@@ -34,7 +64,8 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 	constructor: function (this: RouterInternal, ...args: unknown[]) {
 		MobileRouter.prototype.constructor.apply(this, args);
 		this._globalGuards = [];
-		this._routeGuards = new Map<string, GuardFn[]>();
+		this._enterGuards = new Map<string, GuardFn[]>();
+		this._leaveGuards = new Map<string, LeaveGuardFn[]>();
 		this._currentRoute = "";
 		this._currentHash = null; // null = no parse processed yet
 		this._pendingHash = null;
@@ -47,7 +78,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 	/**
 	 * Register a global guard that runs for every navigation.
 	 */
-	addGuard(this: RouterInternal, guard: GuardFn): RouterInternal {
+	addGuard(this: RouterInternal, guard: GuardFn): GuardRouter {
 		this._globalGuards.push(guard);
 		return this;
 	},
@@ -55,7 +86,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 	/**
 	 * Remove a previously registered global guard.
 	 */
-	removeGuard(this: RouterInternal, guard: GuardFn): RouterInternal {
+	removeGuard(this: RouterInternal, guard: GuardFn): GuardRouter {
 		const index = this._globalGuards.indexOf(guard);
 		if (index !== -1) {
 			this._globalGuards.splice(index, 1);
@@ -65,32 +96,83 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 
 	/**
 	 * Register a guard for a specific route.
+	 *
+	 * Accepts either a guard function (registered as an enter guard) or a
+	 * configuration object with `beforeEnter` and/or `beforeLeave` guards.
 	 */
-	addRouteGuard(this: RouterInternal, routeName: string, guard: GuardFn): RouterInternal {
-		if (!this._routeGuards.has(routeName)) {
-			this._routeGuards.set(routeName, []);
+	addRouteGuard(this: RouterInternal, routeName: string, guard: GuardFn | RouteGuardConfig): GuardRouter {
+		if (isRouteGuardConfig(guard)) {
+			if (!guard.beforeEnter && !guard.beforeLeave) {
+				Log.info(
+					"addRouteGuard called with config missing both beforeEnter and beforeLeave",
+					routeName,
+					LOG_COMPONENT,
+				);
+			}
+			if (guard.beforeEnter) {
+				this.addRouteGuard(routeName, guard.beforeEnter);
+			}
+			if (guard.beforeLeave) {
+				this.addLeaveGuard(routeName, guard.beforeLeave);
+			}
+			return this;
 		}
-		this._routeGuards.get(routeName)!.push(guard);
+		addToGuardMap(this._enterGuards, routeName, guard);
 		return this;
 	},
 
 	/**
 	 * Remove a guard from a specific route.
+	 *
+	 * Accepts the same forms as `addRouteGuard`: a guard function removes
+	 * an enter guard; a configuration object removes `beforeEnter` and/or
+	 * `beforeLeave` by reference.
 	 */
-	removeRouteGuard(this: RouterInternal, routeName: string, guard: GuardFn): RouterInternal {
-		const guards = this._routeGuards.get(routeName);
-		if (guards) {
-			const index = guards.indexOf(guard);
-			if (index !== -1) {
-				guards.splice(index, 1);
+	removeRouteGuard(this: RouterInternal, routeName: string, guard: GuardFn | RouteGuardConfig): GuardRouter {
+		if (isRouteGuardConfig(guard)) {
+			if (guard.beforeEnter) {
+				this.removeRouteGuard(routeName, guard.beforeEnter);
 			}
-			if (guards.length === 0) {
-				this._routeGuards.delete(routeName);
+			if (guard.beforeLeave) {
+				this.removeLeaveGuard(routeName, guard.beforeLeave);
 			}
+			return this;
 		}
+		removeFromGuardMap(this._enterGuards, routeName, guard);
 		return this;
 	},
 
+	/**
+	 * Register a leave guard for a specific route.
+	 *
+	 * Leave guards run when navigating **away from** the route, before any
+	 * enter guards for the target route. They answer the binary question
+	 * "can I leave?" and return only a boolean (no redirects).
+	 */
+	addLeaveGuard(this: RouterInternal, routeName: string, guard: LeaveGuardFn): GuardRouter {
+		addToGuardMap(this._leaveGuards, routeName, guard);
+		return this;
+	},
+
+	/**
+	 * Remove a leave guard from a specific route.
+	 */
+	removeLeaveGuard(this: RouterInternal, routeName: string, guard: LeaveGuardFn): GuardRouter {
+		removeFromGuardMap(this._leaveGuards, routeName, guard);
+		return this;
+	},
+
+	/**
+	 * Intercept hash changes and run the guard pipeline before route matching.
+	 *
+	 * Called by the HashChanger on every `hashChanged` event. Runs leave guards
+	 * (current route), then global + route-specific enter guards (target route).
+	 * Stays synchronous when all guards return plain values; falls back to async
+	 * when a guard returns a Promise. A generation counter discards stale results
+	 * when navigations overlap.
+	 *
+	 * @override sap.ui.core.routing.Router#parse
+	 */
 	parse(this: RouterInternal, newHash: string): void {
 		if (this._suppressNextParse) {
 			this._suppressNextParse = false;
@@ -126,8 +208,12 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 
 		this._pendingHash = newHash;
 
+		// Check if any guards apply (leave OR enter)
+		const hasLeaveGuards = this._currentRoute !== "" && this._leaveGuards.has(this._currentRoute);
+		const hasEnterGuards = this._globalGuards.length > 0 || (toRoute !== "" && this._enterGuards.has(toRoute));
+
 		// No guards → fast path
-		if (this._globalGuards.length === 0 && (!toRoute || !this._routeGuards.has(toRoute))) {
+		if (!hasLeaveGuards && !hasEnterGuards) {
 			this._commitNavigation(newHash, toRoute);
 			return;
 		}
@@ -144,9 +230,98 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 			signal: this._abortController.signal,
 		};
 
-		const result = this._runAllGuards(this._globalGuards, toRoute, context);
+		// Run leave guards first, then enter guards
+		if (hasLeaveGuards) {
+			const leaveResult = this._runLeaveGuards(context);
 
-		if (isPromise(result)) {
+			if (isPromiseLike(leaveResult)) {
+				leaveResult
+					.then((allowed: boolean) => {
+						if (generation !== this._parseGeneration) {
+							Log.debug(
+								"Async leave guard result discarded (superseded by newer navigation)",
+								newHash,
+								LOG_COMPONENT,
+							);
+							return;
+						}
+						if (allowed !== true) {
+							this._blockNavigation();
+							return;
+						}
+						this._runEnterPipeline(generation, newHash, toRoute, context);
+					})
+					.catch((error: unknown) => {
+						if (generation !== this._parseGeneration) return;
+						Log.error(
+							`Async leave guard on route "${this._currentRoute}" failed, blocking navigation`,
+							String(error),
+							LOG_COMPONENT,
+						);
+						this._blockNavigation();
+					});
+				return;
+			}
+			if (leaveResult !== true) {
+				this._blockNavigation();
+				return;
+			}
+		}
+
+		// Enter pipeline (leave guards passed or were absent)
+		this._runEnterPipeline(generation, newHash, toRoute, context);
+	},
+
+	/**
+	 * Run leave guards for the current route. Returns boolean (no redirects).
+	 *
+	 * The guard array is snapshot-copied before iteration so that guards
+	 * may safely add/remove themselves (e.g. one-shot guards) without
+	 * affecting the current pipeline run.
+	 */
+	_runLeaveGuards(this: RouterInternal, context: GuardContext): boolean | Promise<boolean> {
+		const registered = this._leaveGuards.get(this._currentRoute);
+		if (!registered || registered.length === 0) return true;
+
+		const guards = registered.slice();
+		for (let i = 0; i < guards.length; i++) {
+			try {
+				const result = guards[i](context);
+				if (isPromiseLike(result)) {
+					return this._continueGuardsAsync(
+						result,
+						guards,
+						i,
+						context,
+						() => false,
+						"Leave guard",
+						true,
+					) as Promise<boolean>;
+				}
+				if (result !== true) return false;
+			} catch (error) {
+				Log.error(
+					`Leave guard [${i}] on route "${this._currentRoute}" threw, blocking navigation`,
+					String(error),
+					LOG_COMPONENT,
+				);
+				return false;
+			}
+		}
+		return true;
+	},
+
+	/** Run the enter guard pipeline (global + route-specific) and handle the result. */
+	_runEnterPipeline(
+		this: RouterInternal,
+		generation: number,
+		newHash: string,
+		toRoute: string,
+		context: GuardContext,
+	): void {
+		const result = this._runEnterGuards(this._globalGuards, toRoute, context);
+
+		if (isPromiseLike(result)) {
 			result
 				.then((guardResult: GuardResult) => {
 					if (generation !== this._parseGeneration) {
@@ -166,8 +341,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 				.catch((error: unknown) => {
 					if (generation !== this._parseGeneration) return;
 					Log.error("Async guard chain failed, blocking navigation", String(error), LOG_COMPONENT);
-					this._pendingHash = null;
-					this._restoreHash();
+					this._blockNavigation();
 				});
 		} else if (result === true) {
 			this._commitNavigation(newHash, toRoute);
@@ -185,15 +359,15 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 	},
 
 	/** Run global guards, then route-specific guards. Stays sync when possible. */
-	_runAllGuards(
+	_runEnterGuards(
 		this: RouterInternal,
 		globalGuards: GuardFn[],
 		toRoute: string,
 		context: GuardContext,
 	): GuardResult | Promise<GuardResult> {
-		const globalResult = this._runGuardListSync(globalGuards, context);
+		const globalResult = this._runGuards(globalGuards, context);
 
-		if (isPromise(globalResult)) {
+		if (isPromiseLike(globalResult)) {
 			return globalResult.then((r: GuardResult) => {
 				if (r !== true) return r;
 				if (context.signal.aborted) return false;
@@ -206,52 +380,85 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 
 	/** Run route-specific guards if any are registered. */
 	_runRouteGuards(this: RouterInternal, toRoute: string, context: GuardContext): GuardResult | Promise<GuardResult> {
-		if (!toRoute || !this._routeGuards.has(toRoute)) return true;
-		return this._runGuardListSync(this._routeGuards.get(toRoute)!, context);
+		if (!toRoute || !this._enterGuards.has(toRoute)) return true;
+		return this._runGuards(this._enterGuards.get(toRoute)!, context);
 	},
 
-	/** Run guards sync; switch to async path if a Promise is returned. */
-	_runGuardListSync(
-		this: RouterInternal,
-		guards: GuardFn[],
-		context: GuardContext,
-	): GuardResult | Promise<GuardResult> {
+	/**
+	 * Run guards sync; switch to async path if a Promise is returned.
+	 *
+	 * The guard array is snapshot-copied before iteration so that guards
+	 * may safely add/remove themselves (e.g. one-shot guards) without
+	 * affecting the current pipeline run.
+	 */
+	_runGuards(this: RouterInternal, guards: GuardFn[], context: GuardContext): GuardResult | Promise<GuardResult> {
+		guards = guards.slice();
 		for (let i = 0; i < guards.length; i++) {
 			try {
 				const result = guards[i](context);
-				if (isPromise(result)) {
-					return this._finishGuardListAsync(result, guards, i, context);
+				if (isPromiseLike(result)) {
+					return this._continueGuardsAsync(
+						result,
+						guards,
+						i,
+						context,
+						(r) => this._validateGuardResult(r),
+						"Enter guard",
+						false,
+					);
 				}
 				if (result !== true) return this._validateGuardResult(result);
 			} catch (error) {
-				Log.error("Guard threw an error, blocking navigation", String(error), LOG_COMPONENT);
+				Log.error(
+					`Enter guard [${i}] for route "${context.toRoute}" threw, blocking navigation`,
+					String(error),
+					LOG_COMPONENT,
+				);
 				return false;
 			}
 		}
 		return true;
 	},
 
-	/** Continue guard list async from the first Promise onward. */
-	async _finishGuardListAsync(
+	/**
+	 * Continue guard array async from the first Promise onward.
+	 *
+	 * Shared by both enter and leave guard pipelines. The `onBlock` callback
+	 * determines what to return for non-true results: leave guards always
+	 * return `false`, enter guards validate and may return redirects.
+	 *
+	 * @param isLeaveGuard - When true, error logs reference `fromRoute`; otherwise `toRoute`.
+	 */
+	async _continueGuardsAsync(
 		this: RouterInternal,
 		pendingResult: Promise<GuardResult>,
-		guards: GuardFn[],
+		guards: Array<(context: GuardContext) => GuardResult | Promise<GuardResult>>,
 		currentIndex: number,
 		context: GuardContext,
+		onBlock: (result: GuardResult) => GuardResult,
+		label: string,
+		isLeaveGuard: boolean,
 	): Promise<GuardResult> {
+		let guardIndex = currentIndex;
 		try {
 			const result = await pendingResult;
-			if (result !== true) return this._validateGuardResult(result);
+			if (result !== true) return onBlock(result);
 
 			for (let i = currentIndex + 1; i < guards.length; i++) {
 				if (context.signal.aborted) return false;
+				guardIndex = i;
 				const r = await guards[i](context);
-				if (r !== true) return this._validateGuardResult(r);
+				if (r !== true) return onBlock(r);
 			}
 			return true;
 		} catch (error) {
 			if (!context.signal.aborted) {
-				Log.error("Guard threw an error, blocking navigation", String(error), LOG_COMPONENT);
+				const route = isLeaveGuard ? context.fromRoute : context.toRoute;
+				Log.error(
+					`${label} [${guardIndex}] on route "${route}" threw, blocking navigation`,
+					String(error),
+					LOG_COMPONENT,
+				);
 			}
 			return false;
 		}
@@ -268,11 +475,11 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 
 	/** Handle a block or redirect result. */
 	_handleGuardResult(this: RouterInternal, result: GuardResult): void {
-		this._pendingHash = null;
 		if (result === false) {
-			this._restoreHash();
+			this._blockNavigation();
 			return;
 		}
+		this._pendingHash = null;
 		this._redirecting = true;
 		try {
 			if (typeof result === "string") {
@@ -285,9 +492,17 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 		}
 	},
 
+	/** Clear pending state and restore the previous hash. */
+	_blockNavigation(this: RouterInternal): void {
+		this._pendingHash = null;
+		this._restoreHash();
+	},
+
 	/**
 	 * Restore the previous hash without creating a history entry.
 	 * Assumes replaceHash fires hashChanged synchronously (validated by test).
+	 * Note: _currentRoute intentionally stays unchanged — the blocked navigation
+	 * never committed, so the user remains on the same logical route.
 	 */
 	_restoreHash(this: RouterInternal): void {
 		const hashChanger = this.getHashChanger();
@@ -304,7 +519,8 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 	/** Clean up guards on destroy. Bumps generation to discard pending async results. */
 	destroy(this: RouterInternal) {
 		this._globalGuards = [];
-		this._routeGuards.clear();
+		this._enterGuards.clear();
+		this._leaveGuards.clear();
 		++this._parseGeneration;
 		this._pendingHash = null;
 		this._abortController?.abort();

@@ -231,7 +231,7 @@ We extend `sap.m.routing.Router` rather than `sap.ui.core.routing.Router` becaus
 
 ### 2.7 Minimum UI5 Version
 
-**1.75.0** required for `getHashChanger()` on the Router instance. A fallback using `HashChanger.getInstance()` could lower this to 1.58.0, but 1.75 is already 5+ years old and the per-router hash changer is architecturally cleaner.
+**1.118** required due to [`sap.ui.core.Lib`](https://sdk.openui5.org/api/sap.ui.core.Lib) used for library initialization (introduced in 1.118). The Router itself only depends on APIs available since 1.75 (notably `getRouteInfoByHash`), but the library packaging sets the effective floor. Developed and tested against OpenUI5 1.144.0.
 
 ---
 
@@ -262,8 +262,9 @@ By overriding `parse()`, we intercept **all** navigation at the earliest possibl
                     │  │ Resolve route from hash         │ │
                     │  │ Build GuardContext               │ │
                     │  │                                 │ │
-                    │  │ Run global guards (ordered)     │ │
-                    │  │ Run route guards (ordered)      │ │
+                    │  │ Run leave guards (fromRoute)    │ │
+                    │  │ Run global enter guards         │ │
+                    │  │ Run route enter guards          │ │
                     │  │                                 │ │
                     │  │ true  → _commitNavigation()     │ │
                     │  │ false → _restoreHash()          │ │
@@ -282,12 +283,12 @@ By overriding `parse()`, we intercept **all** navigation at the earliest possibl
 | `_redirecting` flag bypasses guards       | Prevents infinite loops when a guard redirects to another guarded route                                                       |
 | `_suppressNextParse` for hash restoration | `replaceHash()` fires `hashChanged` synchronously; the flag prevents double-processing                                        |
 | Strict `true` for allow                   | Only `=== true` allows navigation. Truthy values like `1`, `"yes"`, `{}` are treated as blocks to prevent accidental allows.  |
-| `.extend()` pattern, not ES6 class        | Required for UI5 class registry; enables `"routerClass": "ui5.ext.routing.Router"` in manifest.json                            |
+| `.extend()` pattern, not ES6 class        | Required for UI5 class registry; enables `"routerClass": "ui5.ext.routing.Router"` in manifest.json                           |
 
 ### 3.4 Guard API
 
 ```typescript
-const router = this.getRouter() as unknown as RouterInstance;
+const router = this.getRouter() as unknown as GuardRouter;
 
 // Global guard: runs for every navigation
 router.addGuard((context) => {
@@ -302,6 +303,17 @@ router.addRouteGuard("protected", () => (isLoggedIn() ? true : "login"));
 router.addRouteGuard("dashboard", async (ctx) => {
 	const ok = await checkPermissions(ctx.toRoute);
 	return ok ? true : false;
+});
+
+// Leave guard: blocks navigation away from a route
+router.addLeaveGuard("editOrder", (ctx) => {
+	return !hasUnsavedChanges(); // false blocks, true allows
+});
+
+// Object form: register enter + leave guard in one call
+router.addRouteGuard("editOrder", {
+	beforeEnter: (ctx) => (isLoggedIn() ? true : "login"),
+	beforeLeave: (ctx) => !hasUnsavedChanges(),
 });
 
 // Guards are chainable and can be added/removed at any time
@@ -321,15 +333,15 @@ router.removeGuard(guard1);
 
 ### 3.6 How It Addresses Each Original Problem
 
-| Problem from Issues                              | How This Repo Solves It                                                               |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| View B flashes before redirect to C              | Guards run **before** `parse()` delegates to the parent router. No view is created.   |
-| `router.stop()` + `initialize()` still goes to B | Not needed. Guard returns `"C"` and the router never processes B's hash.              |
-| Browser back to invalid state                    | Guard runs on every `parse()` including back/forward. Returns `false` or redirect.    |
-| `navTo()` creates history entries                | Redirects use `replaceHash` (no history entry). Blocks restore previous hash.         |
-| Guards scattered across controllers              | Centralized registration in `Component.init()`: one place for all guard logic.         |
-| No async support (UI5's blocker)                 | Async guards natively supported. Generation counter handles concurrency.              |
-| `beforeRouteMatched` has no `preventDefault()`   | Override at `parse()` level, earlier than any event. No need for `preventDefault()`.   |
+| Problem from Issues                              | How This Repo Solves It                                                              |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| View B flashes before redirect to C              | Guards run **before** `parse()` delegates to the parent router. No view is created.  |
+| `router.stop()` + `initialize()` still goes to B | Not needed. Guard returns `"C"` and the router never processes B's hash.             |
+| Browser back to invalid state                    | Guard runs on every `parse()` including back/forward. Returns `false` or redirect.   |
+| `navTo()` creates history entries                | Redirects use `replaceHash` (no history entry). Blocks restore previous hash.        |
+| Guards scattered across controllers              | Centralized registration in `Component.init()`: one place for all guard logic.       |
+| No async support (UI5's blocker)                 | Async guards natively supported. Generation counter handles concurrency.             |
+| `beforeRouteMatched` has no `preventDefault()`   | Override at `parse()` level, earlier than any event. No need for `preventDefault()`. |
 
 ### 3.7 What This Is NOT
 
@@ -351,34 +363,46 @@ No application logic changes needed beyond the guard definitions themselves.
 
 ## 4. Test Coverage
 
-| Category              | Count   | What's Tested                                                           |
-| --------------------- | ------- | ----------------------------------------------------------------------- |
-| Drop-in replacement   | 8       | navTo, parameters, events, getRoute: all work without guards             |
-| Guard API             | 5       | add/remove/chain guards, cleanup on destroy                             |
-| Allow navigation      | 3       | Global, route, async guards returning `true`                            |
-| Block navigation      | 5       | Global, route, async guards returning `false`, errors, rejections       |
-| Redirect              | 3       | String redirect, async redirect, GuardRedirect with parameters          |
-| Guard context         | 2       | Context properties, fromRoute/fromHash tracking                         |
-| Execution order       | 4       | Global before route, registration order, short-circuit, route isolation |
-| Invalid values        | 1       | Non-boolean/string/object treated as block                              |
-| GuardRedirect objects | 3       | Plain, with parameters, async                                           |
-| Hash change (URL bar) | 3       | Direct URL blocked, unguarded proceeds, redirect restores hash          |
-| Dynamic guard changes | 3       | State change respected, mid-session add/remove                          |
-| Re-entrancy           | 2       | No infinite loops, cross-redirect settlement                            |
-| Mixed sync/async      | 5       | All combinations of sync/async global + route guards                    |
-| Overlapping async     | 2       | Generation counter, stale result discard                                |
-| Rapid sequential      | 2       | Sync: all processed; async: only last wins                              |
-| `_suppressNextParse`  | 1       | Validates synchronous `hashChanged` assumption                          |
-| **QUnit Total**       | **76**  |                                                                         |
-| E2E (guard-allow)     | 1       | Login then navigate to protected                                        |
-| E2E (guard-block)     | 1       | Logged out, try protected → stays on home                               |
-| E2E (guard-redirect)  | 1       | Navigate to forbidden → redirected                                      |
-| E2E (browser-back)    | multi   | Back button respects guards                                             |
-| E2E (direct-url)      | multi   | URL bar entry respects guards                                           |
-| E2E (multi-route)     | multi   | Complex sequential navigations with state changes                       |
-| E2E (nav-button)      | multi   | Button interactions trigger guards                                      |
-| E2E (routing-basic)   | 1       | Smoke test                                                              |
-| **E2E Total**         | **~24** |                                                                         |
+| Category                      | Count  | What's Tested                                                                                               |
+| ----------------------------- | ------ | ----------------------------------------------------------------------------------------------------------- |
+| Drop-in replacement           | 7      | isA, navTo, parameters, routeMatched/beforeRouteMatched events, getRoute                                    |
+| Guard API                     | 5      | add/remove/chain guards, cleanup on destroy                                                                 |
+| Allow navigation              | 3      | Global, route, async guards returning `true`                                                                |
+| Block navigation              | 5      | Global, route, async guards returning `false`, errors, rejections                                           |
+| Redirect                      | 2      | String redirect, async string redirect                                                                      |
+| Guard context                 | 1      | Context properties (toRoute, toHash, toArguments, fromRoute, fromHash)                                      |
+| Execution order               | 4      | Global before route, registration order, short-circuit, route isolation                                     |
+| Invalid values                | 1      | Non-boolean/string/object treated as block                                                                  |
+| GuardRedirect objects         | 3      | Plain, with parameters, async                                                                               |
+| Hash change (URL bar)         | 3      | Direct URL blocked, unguarded proceeds, redirect restores hash                                              |
+| Dynamic guard changes         | 3      | State change respected, mid-session add/remove                                                              |
+| Re-entrancy                   | 2      | No infinite loops, cross-redirect settlement                                                                |
+| Mixed sync/async              | 5      | All combinations of sync/async global + route guards                                                        |
+| Overlapping async             | 2      | Slower first superseded by faster second, stale result discard                                              |
+| Guard context across navs     | 2      | fromRoute/fromHash tracking, empty on initial nav                                                           |
+| Async guard edge cases        | 6      | Async route throw/reject, multi-async short-circuit, async redirect, null, undefined                        |
+| Rapid sequential              | 2      | Sync: all processed; async: only last wins                                                                  |
+| Current route dedup           | 1      | Navigating back to current route cancels pending async guard                                                |
+| GuardRedirect componentTarget | 1      | GuardRedirect with componentTargetInfo                                                                      |
+| Destroy during pending        | 1      | Router destroy while async guard is pending                                                                 |
+| AbortSignal                   | 4      | Signal on context, aborted on supersede, aborted on destroy, aborted on same-route                          |
+| Superseded nav stops guards   | 2      | Guards stop executing when navigation is superseded                                                         |
+| Duplicate/overlapping nav     | 4      | Same-destination dedup, different-destination supersede, re-navigable after complete, AbortError silenced   |
+| Leave guards                  | 23     | Sync/async allow/block, execution order, short-circuit, object form, chaining, removeRouteGuard object form |
+| **QUnit Total**               | **92** |                                                                                                             |
+| NativeCompat (API parity)     | 3      | isA, public routing methods, additional guard methods                                                       |
+| NativeCompat (Route matching) | 3      | match() known/unknown hashes, getRouteInfoByHash                                                            |
+| **Compat Total**              | **6**  |                                                                                                             |
+| E2E (guard-allow)             | 1      | Login then navigate to protected                                                                            |
+| E2E (guard-block)             | 1      | Logged out, try protected → stays on home                                                                   |
+| E2E (guard-redirect)          | 1      | Navigate to forbidden → redirected                                                                          |
+| E2E (browser-back)            | 4      | Back button respects guards across login states                                                             |
+| E2E (direct-url)              | 5      | URL bar entry respects guards for protected/home/forbidden                                                  |
+| E2E (multi-route)             | 3      | Complex sequential navigations with state changes                                                           |
+| E2E (nav-button)              | 2      | UI5 in-app NavButton interactions                                                                           |
+| E2E (routing-basic)           | 1      | Smoke test                                                                                                  |
+| E2E (leave-guard)             | 4      | Dirty form leave guard: allow clean, block dirty, clear state, browser back                                 |
+| **E2E Total**                 | **22** |                                                                                                             |
 
 ---
 

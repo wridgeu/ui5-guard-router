@@ -63,6 +63,8 @@ QUnit.test("ext router has additional guard methods", function (assert: Assert) 
 	assert.ok(typeof extRouter.removeGuard === "function", "has removeGuard");
 	assert.ok(typeof extRouter.addRouteGuard === "function", "has addRouteGuard");
 	assert.ok(typeof extRouter.removeRouteGuard === "function", "has removeRouteGuard");
+	assert.ok(typeof extRouter.addLeaveGuard === "function", "has addLeaveGuard");
+	assert.ok(typeof extRouter.removeLeaveGuard === "function", "has removeLeaveGuard");
 });
 
 // ============================================================

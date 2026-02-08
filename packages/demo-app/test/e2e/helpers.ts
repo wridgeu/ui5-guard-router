@@ -53,3 +53,35 @@ export async function resetAuth(): Promise<void> {
 		}
 	});
 }
+
+/**
+ * Wait for the URL hash to settle to an expected value, then assert it.
+ */
+export async function expectHashToBe(expected: string, timeoutMsg?: string): Promise<void> {
+	await browser.waitUntil(
+		async () => {
+			const hash = await browser.execute(() => window.location.hash);
+			return hash === expected;
+		},
+		{ timeout: 3000, timeoutMsg: timeoutMsg ?? `Hash did not settle to ${expected}` },
+	);
+	const hash = await browser.execute(() => window.location.hash);
+	expect(hash).toBe(expected);
+}
+
+/**
+ * Set the dirty state by updating the form model property directly.
+ * Avoids relying on CheckBox internals or two-way binding propagation.
+ */
+export async function setDirtyState(isDirty: boolean): Promise<void> {
+	await browser.execute((dirty: boolean) => {
+		const Element = sap.ui.require("sap/ui/core/Element");
+		const view = Element?.getElementById("container-demo.app---protectedView");
+		if (view) {
+			const model = (view as any).getModel("form");
+			if (model) {
+				model.setProperty("/isDirty", dirty);
+			}
+		}
+	}, isDirty);
+}
