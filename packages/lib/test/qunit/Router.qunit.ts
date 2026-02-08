@@ -1192,3 +1192,212 @@ QUnit.test("Destroying router while async guard is pending discards stale result
 	assert.notOk(routeMatched, "Stale guard result was discarded after destroy");
 });
 
+// ============================================================
+// Module: AbortSignal on GuardContext
+// ============================================================
+QUnit.module("Router - AbortSignal on GuardContext", {
+	beforeEach: function () {
+		initHashChanger();
+		router = createRouter();
+	},
+	afterEach: function () {
+		try {
+			router.destroy();
+		} catch {
+			/* already destroyed */
+		}
+		HashChanger.getInstance().setHash("");
+	},
+});
+
+QUnit.test("Guard context includes an AbortSignal", async function (assert: Assert) {
+	let capturedSignal: AbortSignal | null = null;
+	router.addGuard((context: GuardContext) => {
+		capturedSignal = context.signal;
+		return true;
+	});
+	router.initialize();
+	await waitForRoute(router, "home");
+
+	assert.ok(capturedSignal, "Signal was provided");
+	assert.ok(capturedSignal instanceof AbortSignal, "Signal is an AbortSignal");
+	assert.notOk(capturedSignal!.aborted, "Signal is not aborted after successful navigation");
+});
+
+QUnit.test("Signal is aborted when a newer navigation supersedes", async function (assert: Assert) {
+	let firstSignal: AbortSignal | null = null;
+	let secondSignal: AbortSignal | null = null;
+	let callCount = 0;
+
+	router.addGuard(async (context: GuardContext) => {
+		callCount++;
+		if (callCount === 1) {
+			firstSignal = context.signal;
+			await nextTick(200); // slow guard
+		} else {
+			secondSignal = context.signal;
+			await nextTick(10); // fast guard
+		}
+		return true;
+	});
+	router.initialize();
+	await waitForRoute(router, "home");
+	callCount = 0;
+
+	// First navigation (slow)
+	router.navTo("protected");
+	// Second navigation supersedes first
+	await nextTick(10);
+	router.navTo("detail", { id: "1" });
+
+	await nextTick(500);
+	assert.ok(firstSignal, "First signal was captured");
+	assert.ok(firstSignal!.aborted, "First signal was aborted by second navigation");
+	assert.ok(secondSignal, "Second signal was captured");
+	assert.notOk(secondSignal!.aborted, "Second signal remains active");
+});
+
+QUnit.test("Signal is aborted on router destroy", async function (assert: Assert) {
+	let capturedSignal: AbortSignal | null = null;
+	router.addGuard(async (context: GuardContext) => {
+		capturedSignal = context.signal;
+		await nextTick(200);
+		return true;
+	});
+	router.initialize();
+	await waitForRoute(router, "home");
+	capturedSignal = null;
+
+	router.navTo("protected");
+	await nextTick(10);
+	assert.ok(capturedSignal, "Signal was captured");
+	assert.notOk(capturedSignal!.aborted, "Signal is not yet aborted");
+
+	router.destroy();
+	assert.ok(capturedSignal!.aborted, "Signal was aborted on destroy");
+});
+
+QUnit.test("Signal is aborted on same-hash dedup", async function (assert: Assert) {
+	let capturedSignal: AbortSignal | null = null;
+	router.addRouteGuard("protected", async (context: GuardContext) => {
+		capturedSignal = context.signal;
+		await nextTick(200);
+		return true;
+	});
+	router.initialize();
+	await waitForRoute(router, "home"); // commit home so _currentHash = ""
+
+	// Navigate to protected (triggers slow route guard)
+	router.navTo("protected");
+	await nextTick(10);
+	assert.ok(capturedSignal, "Signal was captured");
+
+	// Same-hash: go back to "" which matches committed _currentHash
+	HashChanger.getInstance().setHash("");
+	assert.ok(capturedSignal!.aborted, "Signal was aborted by same-hash dedup");
+});
+
+// ============================================================
+// Module: Early bailout in async guard chain
+// ============================================================
+QUnit.module("Router - Early bailout in async guard chain", {
+	beforeEach: function () {
+		initHashChanger();
+		router = createRouter();
+	},
+	afterEach: function () {
+		router.destroy();
+		HashChanger.getInstance().setHash("");
+	},
+});
+
+QUnit.test("Superseded navigation skips remaining guards in async chain", async function (assert: Assert) {
+	const executed: number[] = [];
+
+	// Use route-specific guards so they only run for "protected", not for "forbidden"
+	router.addRouteGuard("protected", async () => {
+		executed.push(1);
+		await nextTick(10);
+		return true;
+	});
+	router.addRouteGuard("protected", async () => {
+		executed.push(2);
+		await nextTick(100); // slow — will be superseded while waiting
+		return true;
+	});
+	router.addRouteGuard("protected", async () => {
+		executed.push(3); // should NOT run if superseded
+		return true;
+	});
+	router.initialize();
+	await waitForRoute(router, "home");
+
+	// Start navigation that will be superseded
+	router.navTo("protected");
+	// Wait for guard 1 to finish and guard 2 to start
+	await nextTick(30);
+	// Supersede with a new navigation (no guards on "forbidden")
+	router.navTo("forbidden");
+	await waitForRoute(router, "forbidden");
+
+	await nextTick(200); // let everything settle
+	assert.ok(executed.includes(1), "Guard 1 ran");
+	assert.ok(executed.includes(2), "Guard 2 ran (was already started)");
+	assert.notOk(executed.includes(3), "Guard 3 was skipped (early bailout)");
+});
+
+QUnit.test("Superseded route guards are not started after async global guards", async function (assert: Assert) {
+	let routeGuardCalled = false;
+
+	router.addGuard(async () => {
+		await nextTick(100); // slow global guard
+		return true;
+	});
+	router.addRouteGuard("protected", () => {
+		routeGuardCalled = true;
+		return true;
+	});
+	router.initialize();
+	await waitForRoute(router, "home");
+
+	// Start navigation to protected (triggers slow global guard)
+	router.navTo("protected");
+	// Supersede while global guard is pending
+	await nextTick(30);
+	router.navTo("forbidden");
+	await waitForRoute(router, "forbidden");
+
+	await nextTick(200);
+	assert.notOk(routeGuardCalled, "Route guard was not started after superseded global guard");
+});
+
+QUnit.test("AbortError from guard is silenced when navigation is superseded", async function (assert: Assert) {
+	router.addGuard(async (context: GuardContext) => {
+		// Simulate a fetch that throws AbortError when signal is aborted
+		await new Promise<void>((resolve, reject) => {
+			if (context.signal.aborted) {
+				reject(new DOMException("The operation was aborted.", "AbortError"));
+				return;
+			}
+			context.signal.addEventListener("abort", () => {
+				reject(new DOMException("The operation was aborted.", "AbortError"));
+			});
+			setTimeout(resolve, 200);
+		});
+		return true;
+	});
+	router.initialize();
+	await waitForRoute(router, "home");
+
+	// Start navigation (triggers guard with simulated fetch)
+	router.navTo("protected");
+	// Supersede quickly
+	await nextTick(10);
+	router.navTo("forbidden");
+	await waitForRoute(router, "forbidden");
+
+	// Wait for everything to settle — no unhandled errors should occur
+	await nextTick(300);
+	assert.ok(true, "AbortError was silenced, no unhandled error");
+});
+

@@ -41,6 +41,12 @@ export interface GuardContext {
 	fromRoute: string;
 	/** Current hash */
 	fromHash: string;
+	/**
+	 * Abort signal for this navigation. Aborted when a newer navigation
+	 * supersedes this one or when the router is destroyed.
+	 * Pass to `fetch()` or other cancellable APIs to avoid wasted work.
+	 */
+	signal: AbortSignal;
 }
 
 /**
@@ -77,6 +83,7 @@ export interface RouterInternal extends RouterInstance {
 	_redirecting: boolean;
 	_parseGeneration: number;
 	_suppressNextParse: boolean;
+	_abortController: AbortController | null;
 
 	_commitNavigation(hash: string, route?: string): void;
 	_runAllGuards(globalGuards: GuardFn[], toRoute: string, context: GuardContext): GuardResult | Promise<GuardResult>;

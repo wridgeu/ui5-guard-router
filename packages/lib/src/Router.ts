@@ -40,6 +40,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 		this._redirecting = false;
 		this._parseGeneration = 0;
 		this._suppressNextParse = false;
+		this._abortController = null;
 	},
 
 	/**
@@ -103,11 +104,17 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 		// Same-hash dedup: also invalidates any pending async guard
 		if (this._currentHash !== null && newHash === this._currentHash) {
 			++this._parseGeneration;
+			this._abortController?.abort();
+			this._abortController = null;
 			return;
 		}
 
 		const routeInfo = this.getRouteInfoByHash(newHash);
 		const toRoute = routeInfo?.name ?? "";
+
+		// Invalidate any pending async guards from a previous navigation
+		this._abortController?.abort();
+		this._abortController = null;
 		const generation = ++this._parseGeneration;
 
 		// No guards → fast path
@@ -116,12 +123,16 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 			return;
 		}
 
+		// Only create a controller when guards will actually run
+		this._abortController = new AbortController();
+
 		const context: GuardContext = {
 			toRoute,
 			toHash: newHash,
 			toArguments: (routeInfo?.arguments ?? {}) as Record<string, string>,
 			fromRoute: this._currentRoute,
 			fromHash: this._currentHash ?? "",
+			signal: this._abortController.signal,
 		};
 
 		const result = this._runAllGuards(this._globalGuards, toRoute, context);
@@ -174,6 +185,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 		if (isThenable(globalResult)) {
 			return globalResult.then((r: GuardResult) => {
 				if (r !== true) return r;
+				if (context.signal.aborted) return false;
 				return this._runRouteGuards(toRoute, context);
 			});
 		}
@@ -221,12 +233,15 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 			if (result !== true) return this._validateGuardResult(result);
 
 			for (let i = currentIndex + 1; i < guards.length; i++) {
+				if (context.signal.aborted) return false;
 				const r = await guards[i](context);
 				if (r !== true) return this._validateGuardResult(r);
 			}
 			return true;
 		} catch (error) {
-			Log.error("Guard threw an error, blocking navigation", String(error), LOG_COMPONENT);
+			if (!context.signal.aborted) {
+				Log.error("Guard threw an error, blocking navigation", String(error), LOG_COMPONENT);
+			}
 			return false;
 		}
 	},
@@ -279,6 +294,8 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 		this._globalGuards = [];
 		this._routeGuards.clear();
 		++this._parseGeneration;
+		this._abortController?.abort();
+		this._abortController = null;
 		return MobileRouter.prototype.destroy.call(this);
 	},
 });

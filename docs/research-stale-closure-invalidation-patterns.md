@@ -688,7 +688,32 @@ the signal is aborted, cancelling the request.
    of the frameworks surveyed (they all use cleanup-callback registration
    instead).
 
-4. **Subscription replacement**: RxJS's `switchMap` replaces the entire
+4. **Object token**: A variant of the generation counter that uses object
+   identity instead of a numeric value. Each invocation creates a fresh `{}`
+   and stores it on the instance. The async callback captures the token
+   reference and compares it to the current one before applying results.
+   Functionally equivalent to the generation counter but sometimes more
+   readable when the "counter" semantics are not needed.
+
+   ```ts
+   class Fetcher {
+     #currentToken: object | null = null;
+
+     async load(url: string): Promise<void> {
+       const token = {};            // unique identity per invocation
+       this.#currentToken = token;  // store as "current"
+
+       const data = await fetch(url).then(r => r.json());
+
+       if (token !== this.#currentToken) {
+         return; // a newer load() replaced our token — discard
+       }
+       this.applyData(data);
+     }
+   }
+   ```
+
+5. **Subscription replacement**: RxJS's `switchMap` replaces the entire
    subscription rather than using a flag, achieving automatic cancellation.
 
 ### Key insight
