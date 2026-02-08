@@ -53,10 +53,8 @@ export async function assertBlocked(
 	navigate();
 	await nextTick(timeout);
 	route.detachPatternMatched(handler);
-	if (matched) {
-		const hash = HashChanger.getInstance().getHash();
-		assert.notOk(matched, `${message} (navigation unexpectedly reached "${routeName}", hash="${hash}")`);
-	} else {
-		assert.notOk(matched, message);
-	}
+	const assertMsg = matched
+		? `${message} (navigation unexpectedly reached "${routeName}", hash="${HashChanger.getInstance().getHash()}")`
+		: message;
+	assert.notOk(matched, assertMsg);
 }

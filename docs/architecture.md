@@ -62,11 +62,14 @@ matching, target loading, or event firing occurs.
 |   | addGuard()         |    | parse() override          |            |
 |   | removeGuard()      |    | _runLeaveGuards()         |            |
 |   | addRouteGuard()    |    | _runEnterPipeline()       |            |
-|   | removeRouteGuard() |    | _runEnterGuards()           |            |
-|   | addLeaveGuard()    |    | _commitNavigation()       |            |
-|   | removeLeaveGuard() |    | _handleGuardResult()      |            |
-|   +--------------------+    | _restoreHash()            |            |
-|                              +---------------------------+            |
+|   | removeRouteGuard() |    | _runEnterGuards()         |            |
+|   | addLeaveGuard()    |    | _runGuardsSync()          |            |
+|   | removeLeaveGuard() |    | _continueGuardsAsync()      |            |
+|   +--------------------+    | _commitNavigation()       |            |
+|                             | _handleGuardResult()      |            |
+|                             | _blockNavigation()        |            |
+|                             | _restoreHash()            |            |
+|                             +---------------------------+            |
 +----------------------------------------------------------------------+
          |
          | MobileRouter.prototype.parse.call(this, hash)
@@ -136,10 +139,10 @@ flowchart TD
     leave -- yes --> runleave["_runLeaveGuards()"]
     runleave --> lsync{sync result}
     runleave --> lasync{async result}
-    lsync -- "false" --> lrestore([_restoreHash])
+    lsync -- "false" --> lrestore([_blockNavigation])
     lsync -- "true" --> enter1
     lasync --> lawait["await result, check gen"]
-    lawait -- "false" --> lrestore
+    lawait -- "false" --> lblock([_blockNavigation])
     lawait -- "true" --> enter1
     enter1 --> runall["_runEnterGuards()"]
     runall --> esync{sync result}
@@ -180,19 +183,19 @@ flowchart TD
         leave(["_runLeaveGuards(context)"]) --> lcheck{leave guards?}
         lcheck -- none --> phase2
         lcheck -- present --> lrun[run leave guards]
-        lrun -- "sync false" --> lblock(["_restoreHash<br/>short-circuit"])
+        lrun -- "sync false" --> lblock(["_blockNavigation<br/>short-circuit"])
         lrun -- "sync true" --> phase2
-        lrun -- Promise --> lfin["_finishLeaveGuardsAsync()"]
+        lrun -- Promise --> lfin["_continueGuardsAsync()"]
         lfin -- "false" --> lblock
         lfin -- "true" --> phase2
     end
 
     subgraph phase2 ["Phase 2: Global enter guards"]
         enter(["_runEnterPipeline()"]) --> allguards["_runEnterGuards()"]
-        allguards --> gsync["_runGuardListSync(globalGuards)"]
+        allguards --> gsync["_runGuardsSync(globalGuards)"]
         gsync -- "all sync, all true" --> phase3
         gsync -- "sync non-true" --> gblock(["return result<br/>short-circuit"])
-        gsync -- "Promise returned" --> gfin["_finishGuardListAsync()"]
+        gsync -- "Promise returned" --> gfin["_continueGuardsAsync()"]
         gfin -- "resolved true" --> phase3
         gfin -- "non-true" --> gblock2(["return<br/>short-circuit"])
         gfin -- "rejected" --> gblock3(["return false<br/>block"])
@@ -201,7 +204,7 @@ flowchart TD
     subgraph phase3 ["Phase 3: Route-specific enter guards"]
         renter(["_runRouteGuards(toRoute)"]) --> rcheck{route guards?}
         rcheck -- none --> rtrue([return true])
-        rcheck -- present --> rsync["_runGuardListSync(routeGuards)"]
+        rcheck -- present --> rsync["_runGuardsSync(routeGuards)"]
         rsync --> rnote([same sync/async split as above])
     end
 
@@ -227,10 +230,12 @@ flowchart TD
 
     result -- "non-true" --> handle["_handleGuardResult(result)"]
 
-    handle -- "false" --> restore["_restoreHash()"]
-    restore --> s1["set _suppressNextParse = true"]
-    s1 --> s2["hashChanger.replaceHash(previousHash)"]
-    s2 --> s3(["parse fires sync, sees flag, returns"])
+    handle -- "false" --> block["_blockNavigation()"]
+    block --> s1["_pendingHash = null"]
+    s1 --> s2["_restoreHash()"]
+    s2 --> s3["set _suppressNextParse = true"]
+    s3 --> s4["hashChanger.replaceHash(previousHash)"]
+    s4 --> s5(["parse fires sync, sees flag, returns"])
 
     handle -- "string" --> redir["set _redirecting = true"]
     redir --> navto["navTo(routeName, {}, {}, replace=true)"]

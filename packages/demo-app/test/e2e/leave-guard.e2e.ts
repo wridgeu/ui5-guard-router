@@ -1,4 +1,10 @@
-import { waitForPage, fireEvent, resetAuth, setDirtyState } from "./helpers";
+import { waitForPage, fireEvent, resetAuth, setDirtyState, expectHashToBe } from "./helpers";
+
+async function loginAndGoToProtected(): Promise<void> {
+	await fireEvent("container-demo.app---homeView--toggleLoginBtn", "press");
+	await fireEvent("container-demo.app---homeView--navProtectedBtn", "press");
+	await waitForPage("container-demo.app---protectedView--protectedPage", "Protected Page");
+}
 
 describe("Leave Guard - Dirty Form", () => {
 	beforeEach(async () => {
@@ -8,79 +14,35 @@ describe("Leave Guard - Dirty Form", () => {
 	});
 
 	it("should allow leaving protected page when form is clean", async () => {
-		// Login and navigate to protected
-		await fireEvent("container-demo.app---homeView--toggleLoginBtn", "press");
-		await fireEvent("container-demo.app---homeView--navProtectedBtn", "press");
-		await waitForPage("container-demo.app---protectedView--protectedPage", "Protected Page");
-
-		// Ensure form is clean
+		await loginAndGoToProtected();
 		await setDirtyState(false);
 
-		// Navigate back — should succeed
 		await fireEvent("container-demo.app---protectedView--protectedPage", "navButtonPress");
 		await waitForPage("container-demo.app---homeView--homePage", "Home");
 	});
 
 	it("should block leaving protected page when form is dirty", async () => {
-		// Login and navigate to protected
-		await fireEvent("container-demo.app---homeView--toggleLoginBtn", "press");
-		await fireEvent("container-demo.app---homeView--navProtectedBtn", "press");
-		await waitForPage("container-demo.app---protectedView--protectedPage", "Protected Page");
-
-		// Mark form as dirty
+		await loginAndGoToProtected();
 		await setDirtyState(true);
 
-		// Try to navigate back — should be blocked
 		await fireEvent("container-demo.app---protectedView--protectedPage", "navButtonPress");
-
-		// Wait for hash to settle, then verify we're still on protected
-		await browser.waitUntil(
-			async () => {
-				const hash = await browser.execute(() => window.location.hash);
-				return hash === "#/protected";
-			},
-			{ timeout: 3000, timeoutMsg: "Hash did not settle back to #/protected" },
-		);
-		const hash = await browser.execute(() => window.location.hash);
-		expect(hash).toBe("#/protected");
+		await expectHashToBe("#/protected");
 	});
 
 	it("should allow leaving after clearing dirty state", async () => {
-		// Login and navigate to protected
-		await fireEvent("container-demo.app---homeView--toggleLoginBtn", "press");
-		await fireEvent("container-demo.app---homeView--navProtectedBtn", "press");
-		await waitForPage("container-demo.app---protectedView--protectedPage", "Protected Page");
-
-		// Mark dirty, then clean
+		await loginAndGoToProtected();
 		await setDirtyState(true);
 		await setDirtyState(false);
 
-		// Navigate back — should succeed now
 		await fireEvent("container-demo.app---protectedView--protectedPage", "navButtonPress");
 		await waitForPage("container-demo.app---homeView--homePage", "Home");
 	});
 
 	it("should block browser back when form is dirty", async () => {
-		// Login and navigate to protected
-		await fireEvent("container-demo.app---homeView--toggleLoginBtn", "press");
-		await fireEvent("container-demo.app---homeView--navProtectedBtn", "press");
-		await waitForPage("container-demo.app---protectedView--protectedPage", "Protected Page");
-
-		// Mark form as dirty
+		await loginAndGoToProtected();
 		await setDirtyState(true);
 
-		// Browser back — should be blocked by leave guard
 		await browser.execute(() => window.history.back());
-
-		// Wait for hash to settle, then verify we're still on protected
-		await browser.waitUntil(
-			async () => {
-				const hash = await browser.execute(() => window.location.hash);
-				return hash === "#/protected";
-			},
-			{ timeout: 3000, timeoutMsg: "Hash did not settle back to #/protected after browser back" },
-		);
-		const hash = await browser.execute(() => window.location.hash);
-		expect(hash).toBe("#/protected");
+		await expectHashToBe("#/protected", "Hash did not settle back to #/protected after browser back");
 	});
 });

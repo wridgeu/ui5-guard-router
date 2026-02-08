@@ -29,21 +29,41 @@ function createRouter(): GuardRouter {
 	);
 }
 
+let router: GuardRouter;
+
+const standardHooks = {
+	beforeEach: function () {
+		initHashChanger();
+		router = createRouter();
+	},
+	afterEach: function () {
+		router.destroy();
+		HashChanger.getInstance().setHash("");
+	},
+};
+
+const safeDestroyHooks = {
+	beforeEach: standardHooks.beforeEach,
+	afterEach: function () {
+		try {
+			router.destroy();
+		} catch {
+			/* already destroyed */
+		}
+		HashChanger.getInstance().setHash("");
+	},
+};
+
 // ============================================================
 // Module: Drop-in replacement (no guards)
 // ============================================================
-let router: GuardRouter;
-
 QUnit.module("Router - Drop-in replacement (no guards)", {
 	beforeEach: function () {
 		initHashChanger();
 		router = createRouter();
 		router.initialize();
 	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
+	afterEach: standardHooks.afterEach,
 });
 
 QUnit.test("Router is an instance of sap.m.routing.Router", function (assert: Assert) {
@@ -100,20 +120,7 @@ QUnit.test("getRoute returns undefined for unknown route", function (assert: Ass
 // ============================================================
 // Module: Guard API
 // ============================================================
-QUnit.module("Router - Guard API", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		try {
-			router.destroy();
-		} catch {
-			/* already destroyed */
-		}
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - Guard API", safeDestroyHooks);
 
 QUnit.test("addGuard / removeGuard affect navigation behavior", async function (assert: Assert) {
 	router.initialize();
@@ -196,16 +203,7 @@ QUnit.test("destroy cleans up guards so they no longer run", async function (ass
 // ============================================================
 // Module: Guard allows navigation
 // ============================================================
-QUnit.module("Router - Guard allows navigation", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - Guard allows navigation", standardHooks);
 
 QUnit.test("Guard returning true allows navigation", async function (assert: Assert) {
 	router.addGuard(() => true);
@@ -237,16 +235,7 @@ QUnit.test("Route-specific guard returning true allows navigation", async functi
 // ============================================================
 // Module: Guard blocks navigation
 // ============================================================
-QUnit.module("Router - Guard blocks navigation", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - Guard blocks navigation", standardHooks);
 
 QUnit.test("Guard returning false blocks navigation", async function (assert: Assert) {
 	router.addGuard(() => false);
@@ -298,16 +287,7 @@ QUnit.test("Guard returning rejected Promise blocks navigation", async function 
 // ============================================================
 // Module: Guard redirects
 // ============================================================
-QUnit.module("Router - Guard redirects", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - Guard redirects", standardHooks);
 
 QUnit.test("Guard returning string redirects to named route", async function (assert: Assert) {
 	router.addRouteGuard("forbidden", () => "home");
@@ -335,16 +315,7 @@ QUnit.test("Async guard returning string redirects", async function (assert: Ass
 // ============================================================
 // Module: Guard context
 // ============================================================
-QUnit.module("Router - Guard context", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - Guard context", standardHooks);
 
 QUnit.test("Guard receives correct context", async function (assert: Assert) {
 	let capturedContext: GuardContext | null = null;
@@ -365,16 +336,7 @@ QUnit.test("Guard receives correct context", async function (assert: Assert) {
 // ============================================================
 // Module: Guard execution order
 // ============================================================
-QUnit.module("Router - Guard execution order", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - Guard execution order", standardHooks);
 
 QUnit.test("Multiple global guards run sequentially, first rejection wins", async function (assert: Assert) {
 	const order: number[] = [];
@@ -439,16 +401,7 @@ QUnit.test("No guards behaves identically to native router", async function (ass
 // ============================================================
 // Module: Guard with invalid return values
 // ============================================================
-QUnit.module("Router - Guard invalid values", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - Guard invalid values", standardHooks);
 
 QUnit.test("Guard returning invalid value treats as block", async function (assert: Assert) {
 	router.addGuard((() => 42) as any);
@@ -465,16 +418,7 @@ QUnit.test("Guard returning invalid value treats as block", async function (asse
 // ============================================================
 // Module: GuardRedirect object
 // ============================================================
-QUnit.module("Router - GuardRedirect object", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - GuardRedirect object", standardHooks);
 
 QUnit.test("Guard returning GuardRedirect object redirects to route", async function (assert: Assert) {
 	router.addRouteGuard("forbidden", (): GuardRedirect => ({ route: "home" }));
@@ -524,16 +468,7 @@ QUnit.test("Async guard returning GuardRedirect works", async function (assert: 
 // ============================================================
 // Module: Hash change simulation (direct URL entry)
 // ============================================================
-QUnit.module("Router - Hash change (direct URL entry)", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - Hash change (direct URL entry)", standardHooks);
 
 QUnit.test("Direct hash change to guarded route is blocked", async function (assert: Assert) {
 	router.addRouteGuard("protected", () => false);
@@ -577,16 +512,7 @@ QUnit.test("Direct hash change with redirect restores correct hash", async funct
 // ============================================================
 // Module: Sequential navigation with dynamic guard state
 // ============================================================
-QUnit.module("Router - Sequential navigation with changing guards", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - Sequential navigation with changing guards", standardHooks);
 
 QUnit.test("Guard state change between navigations is respected", async function (assert: Assert) {
 	let allowNavigation = false;
@@ -650,16 +576,7 @@ QUnit.test("Removing guard mid-session allows subsequent navigations", async fun
 // ============================================================
 // Module: Guard re-entrancy (guard triggers navigation)
 // ============================================================
-QUnit.module("Router - Guard re-entrancy", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - Guard re-entrancy", standardHooks);
 
 QUnit.test("Guard that returns redirect does not cause infinite loop", async function (assert: Assert) {
 	let guardCallCount = 0;
@@ -690,16 +607,7 @@ QUnit.test("Multiple route guards with cross-redirects settle correctly", async 
 // ============================================================
 // Module: Mixed sync/async guard pipelines
 // ============================================================
-QUnit.module("Router - Mixed sync/async guard pipelines", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - Mixed sync/async guard pipelines", standardHooks);
 
 QUnit.test("Sync global guard allows, async route guard allows", async function (assert: Assert) {
 	router.addGuard(() => true);
@@ -774,16 +682,7 @@ QUnit.test("Async global guard allows, sync route guard redirects", async functi
 // ============================================================
 // Module: Overlapping async navigations
 // ============================================================
-QUnit.module("Router - Overlapping async navigations", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - Overlapping async navigations", standardHooks);
 
 QUnit.test("Slower first navigation is superseded by faster second navigation", async function (assert: Assert) {
 	router.addRouteGuard("protected", async () => {
@@ -840,16 +739,7 @@ QUnit.test("Superseded async guard result does not apply", async function (asser
 // ============================================================
 // Module: Guard context across navigations
 // ============================================================
-QUnit.module("Router - Guard context across navigations", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - Guard context across navigations", standardHooks);
 
 QUnit.test("Guard context has correct fromRoute and fromHash after prior navigation", async function (assert: Assert) {
 	let capturedContext: GuardContext | null = null;
@@ -891,16 +781,7 @@ QUnit.test("Guard context fromRoute/fromHash are empty on initial navigation", a
 // ============================================================
 // Module: Async guard edge cases
 // ============================================================
-QUnit.module("Router - Async guard edge cases", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - Async guard edge cases", standardHooks);
 
 QUnit.test("Async route-specific guard throwing error blocks navigation", async function (assert: Assert) {
 	router.addRouteGuard("protected", async () => {
@@ -995,16 +876,7 @@ QUnit.test("Guard returning undefined is treated as block", async function (asse
 // ============================================================
 // Module: Rapid sequential navigations
 // ============================================================
-QUnit.module("Router - Rapid sequential navigations", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - Rapid sequential navigations", standardHooks);
 
 QUnit.test("Rapid sync navigations - last one wins", async function (assert: Assert) {
 	const matchedRoutes: string[] = [];
@@ -1051,16 +923,7 @@ QUnit.test("Rapid async navigations - only last navigation settles", async funct
 // ============================================================
 // Module: Returning to current route during pending guard
 // ============================================================
-QUnit.module("Router - Returning to current route during pending guard", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - Returning to current route during pending guard", standardHooks);
 
 QUnit.test("Navigating back to current route cancels a pending async guard", async function (assert: Assert) {
 	router.addRouteGuard("protected", async () => {
@@ -1090,16 +953,7 @@ QUnit.test("Navigating back to current route cancels a pending async guard", asy
 // ============================================================
 // Module: GuardRedirect with componentTargetInfo
 // ============================================================
-QUnit.module("Router - GuardRedirect with componentTargetInfo", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - GuardRedirect with componentTargetInfo", standardHooks);
 
 QUnit.test("GuardRedirect with componentTargetInfo redirects and arrives at target", async function (assert: Assert) {
 	router.addRouteGuard(
@@ -1127,20 +981,7 @@ QUnit.test("GuardRedirect with componentTargetInfo redirects and arrives at targ
 // ============================================================
 // Module: Destroy during pending async guard
 // ============================================================
-QUnit.module("Router - Destroy during pending async guard", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		try {
-			router.destroy();
-		} catch {
-			/* already destroyed */
-		}
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - Destroy during pending async guard", safeDestroyHooks);
 
 QUnit.test(
 	"Destroying router while async guard is pending does not complete navigation",
@@ -1172,20 +1013,7 @@ QUnit.test(
 // ============================================================
 // Module: AbortSignal on GuardContext
 // ============================================================
-QUnit.module("Router - AbortSignal on GuardContext", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		try {
-			router.destroy();
-		} catch {
-			/* already destroyed */
-		}
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - AbortSignal on GuardContext", safeDestroyHooks);
 
 QUnit.test("Guard context includes an AbortSignal", async function (assert: Assert) {
 	let capturedSignal: AbortSignal | null = null;
@@ -1277,16 +1105,7 @@ QUnit.test("Signal is aborted when navigating back to current route", async func
 // ============================================================
 // Module: Superseded navigation stops remaining guards
 // ============================================================
-QUnit.module("Router - Superseded navigation stops remaining guards", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - Superseded navigation stops remaining guards", standardHooks);
 
 QUnit.test("Guards for a superseded navigation stop executing", async function (assert: Assert) {
 	const executed: number[] = [];
@@ -1354,16 +1173,7 @@ QUnit.test(
 // ============================================================
 // Module: Duplicate and overlapping navigation
 // ============================================================
-QUnit.module("Router - Duplicate and overlapping navigation", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - Duplicate and overlapping navigation", standardHooks);
 
 QUnit.test(
 	"Repeated navTo to same destination during pending guard runs guard only once",
@@ -1474,16 +1284,7 @@ QUnit.test("AbortError from guard is silenced when navigation is superseded", as
 // ============================================================
 // Module: Leave Guards
 // ============================================================
-QUnit.module("Router - Leave Guards", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
-});
+QUnit.module("Router - Leave Guards", standardHooks);
 
 QUnit.test("Leave guard returning true allows navigation", async function (assert: Assert) {
 	const leaveGuard: LeaveGuardFn = () => true;

@@ -360,10 +360,10 @@ ui5.ext.routing:
   navTo() / hashChange / URL bar
     → HashChanger fires hashChanged
       → parse(newHash)                      ← BLOCKING + GUARDING happens here
-        → _runLeaveGuards() [if implemented]
+        → _runLeaveGuards()
         → _runEnterGuards()
-          → _runGuardListSync()             ← sync-first optimization
-          → _finishGuardListAsync()          ← async fallback
+          → _runGuardsSync()                ← sync-first optimization
+          → _continueGuardsAsync()             ← async fallback
         → _commitNavigation()
           → MobileRouter.parse()
             → route matching + target loading

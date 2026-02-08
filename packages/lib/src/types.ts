@@ -113,23 +113,24 @@ export interface RouterInternal extends GuardRouter {
 
 	_commitNavigation(hash: string, route?: string): void;
 	_runLeaveGuards(context: GuardContext): boolean | Promise<boolean>;
-	_finishLeaveGuardsAsync(
-		pendingResult: Promise<boolean>,
-		guards: LeaveGuardFn[],
-		currentIndex: number,
+	_runEnterGuards(
+		globalGuards: GuardFn[],
+		toRoute: string,
 		context: GuardContext,
-	): Promise<boolean>;
-	_runEnterGuards(globalGuards: GuardFn[], toRoute: string, context: GuardContext): GuardResult | Promise<GuardResult>;
+	): GuardResult | Promise<GuardResult>;
 	_runEnterPipeline(generation: number, newHash: string, toRoute: string, context: GuardContext): void;
 	_runRouteGuards(toRoute: string, context: GuardContext): GuardResult | Promise<GuardResult>;
-	_runGuardListSync(guards: GuardFn[], context: GuardContext): GuardResult | Promise<GuardResult>;
-	_finishGuardListAsync(
+	_runGuardsSync(guards: GuardFn[], context: GuardContext): GuardResult | Promise<GuardResult>;
+	_continueGuardsAsync(
 		pendingResult: Promise<GuardResult>,
-		guards: GuardFn[],
+		guards: Array<(context: GuardContext) => GuardResult | Promise<GuardResult>>,
 		currentIndex: number,
 		context: GuardContext,
+		onBlock: (result: GuardResult) => GuardResult,
+		label: string,
 	): Promise<GuardResult>;
 	_validateGuardResult(result: GuardResult): GuardResult;
 	_handleGuardResult(result: GuardResult): void;
+	_blockNavigation(): void;
 	_restoreHash(): void;
 }
