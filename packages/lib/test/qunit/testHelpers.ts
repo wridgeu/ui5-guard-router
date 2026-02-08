@@ -1,5 +1,5 @@
 import HashChanger from "sap/ui/core/routing/HashChanger";
-import type { RouterInstance } from "ui5/ext/routing/types";
+import type { GuardRouter } from "ui5/ext/routing/types";
 
 /**
  * Initialize HashChanger for tests (idempotent).
@@ -18,7 +18,7 @@ export function nextTick(ms = 50): Promise<void> {
 }
 
 /** Wait for a single patternMatched on `routeName`, then detach. */
-export function waitForRoute(router: RouterInstance, routeName: string): Promise<void> {
+export function waitForRoute(router: GuardRouter, routeName: string): Promise<void> {
 	return new Promise((resolve) => {
 		const route = router.getRoute(routeName)!;
 		route.attachPatternMatched(function handler() {
@@ -34,7 +34,7 @@ export function waitForRoute(router: RouterInstance, routeName: string): Promise
  */
 export async function assertBlocked(
 	assert: Assert,
-	router: RouterInstance,
+	router: GuardRouter,
 	routeName: string,
 	navigate: () => void,
 	message: string,

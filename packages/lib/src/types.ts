@@ -1,5 +1,5 @@
 import type MobileRouter from "sap/m/routing/Router";
-import type { ComponentTargetParameters } from "sap/ui/core/routing/Router";
+import type { ComponentTargetParameters, RouteInfo } from "sap/ui/core/routing/Router";
 
 /**
  * Redirect target with route name and optional parameters.
@@ -8,7 +8,7 @@ export interface GuardRedirect {
 	/** Route name to redirect to */
 	route: string;
 	/** Optional route parameters */
-	parameters?: Record<string, string>;
+	parameters?: ComponentTargetParameters["parameters"];
 	/** Optional component target info for nested component routing */
 	componentTargetInfo?: Record<string, ComponentTargetParameters>;
 }
@@ -36,7 +36,7 @@ export interface GuardContext {
 	/** Raw hash being navigated to */
 	toHash: string;
 	/** Parsed route parameters */
-	toArguments: Record<string, string>;
+	toArguments: RouteInfo["arguments"];
 	/** Current route name (empty string on initial navigation) */
 	fromRoute: string;
 	/** Current hash */
@@ -60,11 +60,11 @@ export type GuardFn = (context: GuardContext) => GuardResult | Promise<GuardResu
  * Extends `sap.m.routing.Router` with guard management methods.
  * Use this type when casting `getRouter()` in application code.
  */
-export interface RouterInstance extends MobileRouter {
-	addGuard(guard: GuardFn): RouterInstance;
-	removeGuard(guard: GuardFn): RouterInstance;
-	addRouteGuard(routeName: string, guard: GuardFn): RouterInstance;
-	removeRouteGuard(routeName: string, guard: GuardFn): RouterInstance;
+export interface GuardRouter extends MobileRouter {
+	addGuard(guard: GuardFn): GuardRouter;
+	removeGuard(guard: GuardFn): GuardRouter;
+	addRouteGuard(routeName: string, guard: GuardFn): GuardRouter;
+	removeRouteGuard(routeName: string, guard: GuardFn): GuardRouter;
 }
 
 /**
@@ -75,7 +75,7 @@ export interface RouterInstance extends MobileRouter {
  *
  * @internal
  */
-export interface RouterInternal extends RouterInstance {
+export interface RouterInternal extends GuardRouter {
 	_globalGuards: GuardFn[];
 	_routeGuards: Map<string, GuardFn[]>;
 	_currentRoute: string;

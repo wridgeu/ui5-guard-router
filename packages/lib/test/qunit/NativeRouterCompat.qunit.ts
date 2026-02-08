@@ -1,7 +1,7 @@
 import Router from "ui5/ext/routing/Router";
 import MobileRouter from "sap/m/routing/Router";
 import HashChanger from "sap/ui/core/routing/HashChanger";
-import type { RouterInstance } from "ui5/ext/routing/types";
+import type { GuardRouter } from "ui5/ext/routing/types";
 import { initHashChanger } from "./testHelpers";
 
 /**
@@ -23,14 +23,14 @@ function createRouterConfig(): [object[], object] {
 // ============================================================
 // Module: API parity
 // ============================================================
-let extRouter: RouterInstance;
+let extRouter: GuardRouter;
 let nativeRouter: MobileRouter;
 
 QUnit.module("NativeCompat - API parity", {
 	beforeEach: function () {
 		initHashChanger();
 		const [routes, config] = createRouterConfig();
-		extRouter = new (Router as any)(routes, config) as RouterInstance;
+		extRouter = new (Router as any)(routes, config) as GuardRouter;
 		nativeRouter = new MobileRouter(routes, config);
 	},
 	afterEach: function () {
@@ -69,13 +69,13 @@ QUnit.test("ext router has additional guard methods", function (assert: Assert) 
 // ============================================================
 // Module: Route matching parity
 // ============================================================
-let router: RouterInstance;
+let router: GuardRouter;
 
 QUnit.module("NativeCompat - Route matching", {
 	beforeEach: function () {
 		initHashChanger();
 		const [routes, config] = createRouterConfig();
-		router = new (Router as any)(routes, config) as RouterInstance;
+		router = new (Router as any)(routes, config) as GuardRouter;
 	},
 	afterEach: function () {
 		router.destroy();

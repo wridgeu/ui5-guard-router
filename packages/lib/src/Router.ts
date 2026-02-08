@@ -11,8 +11,8 @@ function isGuardRedirect(value: GuardResult): value is GuardRedirect {
 	return typeof value === "object" && value !== null && typeof value.route === "string";
 }
 
-function isThenable(value: GuardResult | Promise<GuardResult>): value is Promise<GuardResult> {
-	return typeof value === "object" && value !== null && typeof (value as Promise<GuardResult>).then === "function";
+function isPromise(value: GuardResult | Promise<GuardResult>): value is Promise<GuardResult> {
+	return value instanceof Promise;
 }
 
 /**
@@ -138,7 +138,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 		const context: GuardContext = {
 			toRoute,
 			toHash: newHash,
-			toArguments: (routeInfo?.arguments ?? {}) as Record<string, string>,
+			toArguments: routeInfo?.arguments ?? {},
 			fromRoute: this._currentRoute,
 			fromHash: this._currentHash ?? "",
 			signal: this._abortController.signal,
@@ -146,7 +146,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 
 		const result = this._runAllGuards(this._globalGuards, toRoute, context);
 
-		if (isThenable(result)) {
+		if (isPromise(result)) {
 			result
 				.then((guardResult: GuardResult) => {
 					if (generation !== this._parseGeneration) {
@@ -193,7 +193,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 	): GuardResult | Promise<GuardResult> {
 		const globalResult = this._runGuardListSync(globalGuards, context);
 
-		if (isThenable(globalResult)) {
+		if (isPromise(globalResult)) {
 			return globalResult.then((r: GuardResult) => {
 				if (r !== true) return r;
 				if (context.signal.aborted) return false;
@@ -219,7 +219,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 		for (let i = 0; i < guards.length; i++) {
 			try {
 				const result = guards[i](context);
-				if (isThenable(result)) {
+				if (isPromise(result)) {
 					return this._finishGuardListAsync(result, guards, i, context);
 				}
 				if (result !== true) return this._validateGuardResult(result);

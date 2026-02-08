@@ -1,6 +1,6 @@
 import Router from "ui5/ext/routing/Router";
 import HashChanger from "sap/ui/core/routing/HashChanger";
-import type { GuardContext, GuardFn, GuardRedirect, RouterInstance } from "ui5/ext/routing/types";
+import type { GuardContext, GuardFn, GuardRedirect, GuardRouter } from "ui5/ext/routing/types";
 import type { Route$PatternMatchedEvent } from "sap/ui/core/routing/Route";
 import type { Router$RouteMatchedEvent } from "sap/ui/core/routing/Router";
 import { initHashChanger, nextTick, waitForRoute, assertBlocked } from "./testHelpers";
@@ -9,7 +9,7 @@ interface DetailRouteArguments {
 	id: string;
 }
 
-function createRouter(): RouterInstance {
+function createRouter(): GuardRouter {
 	return new (Router as any)(
 		[
 			{ name: "home", pattern: "" },
@@ -26,7 +26,7 @@ function createRouter(): RouterInstance {
 // ============================================================
 // Module: Drop-in replacement (no guards)
 // ============================================================
-let router: RouterInstance;
+let router: GuardRouter;
 
 QUnit.module("Router - Drop-in replacement (no guards)", {
 	beforeEach: function () {

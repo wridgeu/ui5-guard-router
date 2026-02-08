@@ -1,5 +1,7 @@
 import UIComponent from "sap/ui/core/UIComponent";
-import type { RouterInstance } from "ui5/ext/routing/types";
+import JSONModel from "sap/ui/model/json/JSONModel";
+import type { GuardRouter } from "ui5/ext/routing/types";
+import { createAuthGuard, forbiddenGuard } from "./guards";
 
 /**
  * @namespace demo.app
@@ -13,14 +15,11 @@ export default class Component extends UIComponent {
 	init(): void {
 		super.init();
 
-		const router = this.getRouter() as unknown as RouterInstance;
+		const router = this.getRouter() as unknown as GuardRouter;
+		const authModel = this.getModel("auth") as JSONModel;
 
-		router.addRouteGuard("protected", () => {
-			const isLoggedIn = this.getModel("auth")?.getProperty("/isLoggedIn");
-			return isLoggedIn ? true : "home";
-		});
-
-		router.addRouteGuard("forbidden", () => "home");
+		router.addRouteGuard("protected", createAuthGuard(authModel));
+		router.addRouteGuard("forbidden", forbiddenGuard);
 
 		router.initialize();
 	}
