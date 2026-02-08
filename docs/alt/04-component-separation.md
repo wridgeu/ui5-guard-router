@@ -48,7 +48,7 @@ async onLogin(): Promise<void> {
 1. Only the public component loads initially
 2. After authentication, the authenticated component is loaded dynamically
 3. The authenticated component has its own router with its own routes
-4. If the user is not authenticated, the authenticated component doesn't exist — its code hasn't even been loaded
+4. If the user is not authenticated, the authenticated component doesn't exist; its code hasn't even been loaded
 
 ## Pros
 
@@ -107,6 +107,6 @@ This is cleaner than manual `ComponentContainer` management but still doesn't so
 
 ## References
 
-- [SAP/openui5#3094 comment](https://github.com/SAP/openui5/issues/3094#issuecomment-737976447) — SAP recommends component separation for auth
-- [SAP BTP XSUAA](https://community.sap.com/t5/technology-blogs-by-members/demystifying-approuter-xsuaa-and-idp-in-btp-cf-environment/ba-p/13517688) — Server-side auth enforcement
-- [SAP Application Router](https://community.sap.com/t5/technology-blogs-by-sap/sap-application-router/ba-p/13393550) — Request-level auth
+- [SAP/openui5#3094 comment](https://github.com/SAP/openui5/issues/3094#issuecomment-737976447): SAP recommends component separation for auth
+- [SAP BTP XSUAA](https://community.sap.com/t5/technology-blogs-by-members/demystifying-approuter-xsuaa-and-idp-in-btp-cf-environment/ba-p/13517688): Server-side auth enforcement
+- [SAP Application Router](https://community.sap.com/t5/technology-blogs-by-sap/sap-application-router/ba-p/13393550): Request-level auth

@@ -176,7 +176,7 @@ React Router takes a fundamentally different approach: **no explicit guard middl
 ### Enter Protection: Loaders
 
 ```jsx
-// Loader-based (v6.4+) — data fetched before render
+// Loader-based (v6.4+) -- data fetched before render
 const router = createBrowserRouter([
 	{
 		path: "/admin",
@@ -236,7 +236,7 @@ function EditForm() {
 - **Loaders run in parallel**: All matching route loaders execute concurrently
 - **`redirect()` from loaders**: Throw a `redirect()` to cancel and redirect
 - **`useBlocker` for leave guards**: Component-level hook with `proceed()`/`reset()` API
-- **No `beforeEach` equivalent**: Intentional — React favors composition over middleware
+- **No `beforeEach` equivalent**: Intentional. React favors composition over middleware
 - **Limitation**: `useBlocker` does not handle hard-reloads or cross-origin navigations
 
 ### Comparison with ui5.ext.routing
@@ -307,7 +307,7 @@ navigate({ to: '/dashboard', ignoreBlocker: true });
 - **AbortController per match**: Each route match gets its own `AbortController`. When a new navigation starts, `cancelMatches()` aborts all pending controllers. This is more granular than `ui5.ext.routing`'s single `_parseGeneration` counter, but heavier.
 - **`beforeLoad` hooks**: Run parent-to-child, each contributing to accumulated context
 - **Context accumulation**: Parent route context flows to children (type-safe)
-- **`ignoreBlocker`**: Specific navigations can bypass blockers (e.g., "Save & Navigate"). Redirects from guards automatically use `ignoreBlocker: true` — analogous to `ui5.ext.routing`'s `_redirecting` flag.
+- **`ignoreBlocker`**: Specific navigations can bypass blockers (e.g., "Save & Navigate"). Redirects from guards automatically use `ignoreBlocker: true`, analogous to `ui5.ext.routing`'s `_redirecting` flag.
 - **`cause` parameter**: `beforeLoad` receives `'preload' | 'enter' | 'stay'` to distinguish navigation reasons
 - **No generation counter**: Uses `latestLoadPromise` tracking + AbortController instead
 
@@ -330,7 +330,7 @@ For a detailed source code analysis, see [Alternative 12: TanStack Router Deep D
 
 ## Ember.js
 
-Ember takes a unique approach with its **transition object** — a first-class entity that can be stored, aborted, and retried.
+Ember takes a unique approach with its **transition object**, a first-class entity that can be stored, aborted, and retried.
 
 ### API
 
@@ -349,7 +349,7 @@ export default class ProtectedRoute extends Route {
     }
 }
 
-// In the Login controller — retry after login
+// In the Login controller -- retry after login
 @action
 login() {
     // ... authenticate ...
@@ -388,7 +388,7 @@ this.router.on("routeWillChange", (transition) => {
 ### Key Design Choices
 
 - **Transition as first-class object**: Transitions can be stored, aborted, and retried
-- **`transition.retry()`**: Uniquely powerful — enables "redirect to login, then resume" pattern without the login page knowing the original destination
+- **`transition.retry()`**: Uniquely powerful, enabling the "redirect to login, then resume" pattern without the login page knowing the original destination
 - **`routeWillChange` event**: Global interception point for leave guards
 - **Route hooks**: `beforeModel`, `model`, `afterModel` all receive the transition
 - **Limitation**: Browser back button changes the URL before `routeWillChange` fires

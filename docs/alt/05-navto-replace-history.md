@@ -18,8 +18,8 @@ From the [UI5 API docs](https://ui5.sap.com/#/api/sap.ui.core.routing.Router%23m
 
 ## How It Works
 
-1. Standard `navTo("route")` calls `hashChanger.setHash()` — creates a new history entry
-2. `navTo("route", {}, undefined, true)` calls `hashChanger.replaceHash()` — replaces the current entry
+1. Standard `navTo("route")` calls `hashChanger.setHash()`, creating a new history entry
+2. `navTo("route", {}, undefined, true)` calls `hashChanger.replaceHash()`, replacing the current entry
 3. The browser's back button skips over replaced entries entirely
 
 ## Example: Login Flow
@@ -81,9 +81,9 @@ This approach is complementary. Even with `ui5.ext.routing`, guards use `navTo(.
 this.navTo(result, {}, {}, true);
 ```
 
-For application code, using `bReplace: true` in explicit `navTo` calls is still good practice alongside router guards — it ensures clean history even for non-guarded navigations like login state transitions.
+For application code, using `bReplace: true` in explicit `navTo` calls is still good practice alongside router guards, as it ensures clean history even for non-guarded navigations like login state transitions.
 
 ## References
 
 - [UI5 API: Router.navTo](https://ui5.sap.com/#/api/sap.ui.core.routing.Router%23methods/navTo)
-- [wridgeu/ui5-poc-ewm-one-login#1](https://github.com/wridgeu/ui5-poc-ewm-one-login/issues/1) — Approach C1
+- [wridgeu/ui5-poc-ewm-one-login#1](https://github.com/wridgeu/ui5-poc-ewm-one-login/issues/1): Approach C1

@@ -7,18 +7,18 @@ when reactive dependencies change before those operations complete.
 
 ## Table of Contents
 
-1. [React -- useEffect cleanup with boolean flag](#react----useeffect-cleanup-with-boolean-flag)
-2. [Vue 3 -- Watcher cleanup with onCleanup / onWatcherCleanup](#vue-3----watcher-cleanup-with-oncleanup--onwatchercleanup)
-3. [Solid.js -- Owner-scoped cleanups via onCleanup](#solidjs----owner-scoped-cleanups-via-oncleanup)
-4. [Svelte 5 -- $effect teardown return function](#svelte-5----effect-teardown-return-function)
-5. [Angular -- effect() onCleanup callback](#angular----effect-oncleanup-callback)
-6. [RxJS / Angular -- switchMap automatic unsubscription](#rxjs--angular----switchmap-automatic-unsubscription)
-7. [TanStack Query -- Single-retryer replacement with AbortSignal](#tanstack-query----single-retryer-replacement-with-abortsignal)
+1. [React: useEffect cleanup with boolean flag](#react-useeffect-cleanup-with-boolean-flag)
+2. [Vue 3: Watcher cleanup with onCleanup / onWatcherCleanup](#vue-3-watcher-cleanup-with-oncleanup--onwatchercleanup)
+3. [Solid.js: Owner-scoped cleanups via onCleanup](#solidjs-owner-scoped-cleanups-via-oncleanup)
+4. [Svelte 5: $effect teardown return function](#svelte-5-effect-teardown-return-function)
+5. [Angular: effect() onCleanup callback](#angular-effect-oncleanup-callback)
+6. [RxJS / Angular: switchMap automatic unsubscription](#rxjs--angular-switchmap-automatic-unsubscription)
+7. [TanStack Query: Single-retryer replacement with AbortSignal](#tanstack-query-single-retryer-replacement-with-abortsignal)
 8. [Comparison summary](#comparison-summary)
 
 ---
 
-## React -- useEffect cleanup with boolean flag
+## React: useEffect cleanup with boolean flag
 
 ### Mechanism
 
@@ -28,8 +28,8 @@ callback) on the effect's `EffectInstance` object. Before an effect re-runs due
 to changed dependencies, React calls all pending `destroy` functions first,
 then runs the new `create` functions.
 
-The **user-land** pattern for stale async invalidation is a **boolean flag** --
-commonly called `ignore` or `cancelled` -- scoped to the effect closure and
+The **user-land** pattern for stale async invalidation is a **boolean flag**,
+commonly called `ignore` or `cancelled`, scoped to the effect closure and
 flipped to `true` in the cleanup function.
 
 ### Source code (React internals)
@@ -38,7 +38,7 @@ The relevant files in [facebook/react](https://github.com/facebook/react) are:
 
 | File | Purpose |
 |---|---|
-| `packages/react-reconciler/src/ReactFiberHooks.js` | `mountEffect`, `updateEffect`, `pushEffect` -- creates Effect objects with `{tag, inst, create, deps}` |
+| `packages/react-reconciler/src/ReactFiberHooks.js` | `mountEffect`, `updateEffect`, `pushEffect`; creates Effect objects with `{tag, inst, create, deps}` |
 | `packages/react-reconciler/src/ReactFiberCommitEffects.js` | `commitHookEffectListUnmount` (runs destroy), `commitHookEffectListMount` (runs create, stores returned destroy) |
 | `packages/react-reconciler/src/ReactHookEffectTags.js` | Flag constants `HookHasEffect`, `HookPassive`, `HookLayout` |
 
@@ -143,7 +143,7 @@ useEffect(() => {
 
 ---
 
-## Vue 3 -- Watcher cleanup with onCleanup / onWatcherCleanup
+## Vue 3: Watcher cleanup with onCleanup / onWatcherCleanup
 
 ### Mechanism
 
@@ -155,9 +155,9 @@ checks its `dirty` flag to determine whether re-evaluation is needed.
 
 There are two API surfaces:
 
-1. **`onCleanup` parameter** (Vue 3.0+) -- passed as the 3rd argument to
+1. **`onCleanup` parameter** (Vue 3.0+), passed as the 3rd argument to
    `watch` callbacks or 1st argument to `watchEffect`.
-2. **`onWatcherCleanup()`** (Vue 3.5+) -- a standalone import that registers
+2. **`onWatcherCleanup()`** (Vue 3.5+), a standalone import that registers
    cleanup on the currently active watcher.
 
 ### Source code
@@ -167,7 +167,7 @@ The relevant files in [vuejs/core](https://github.com/vuejs/core) are:
 | File | Purpose |
 |---|---|
 | `packages/reactivity/src/watch.ts` | `onWatcherCleanup`, `cleanupMap` WeakMap, `baseWatch` core logic |
-| `packages/runtime-core/src/apiWatch.ts` | `watch`, `watchEffect` -- thin wrappers over `baseWatch` with scheduler integration |
+| `packages/runtime-core/src/apiWatch.ts` | `watch`, `watchEffect`: thin wrappers over `baseWatch` with scheduler integration |
 
 **Cleanup registration** (`packages/reactivity/src/watch.ts`):
 
@@ -264,7 +264,7 @@ watchEffect(async (onCleanup) => {
 
 ---
 
-## Solid.js -- Owner-scoped cleanups via onCleanup
+## Solid.js: Owner-scoped cleanups via onCleanup
 
 ### Mechanism
 
@@ -301,7 +301,7 @@ export function onCleanup<T extends () => any>(fn: T): T {
 }
 ```
 
-**cleanNode -- runs all cleanups before re-execution:**
+**cleanNode: runs all cleanups before re-execution:**
 
 ```ts
 function cleanNode(node: Owner) {
@@ -328,7 +328,7 @@ function cleanNode(node: Owner) {
 }
 ```
 
-**updateComputation -- cleanup then re-run:**
+**updateComputation: cleanup then re-run:**
 
 ```ts
 function updateComputation(node: Computation<any>) {
@@ -382,7 +382,7 @@ createEffect(() => {
 
 ---
 
-## Svelte 5 -- $effect teardown return function
+## Svelte 5: $effect teardown return function
 
 ### Mechanism
 
@@ -393,8 +393,8 @@ dependency changes) or when the component is destroyed, Svelte calls
 `execute_effect_teardown(effect)`.
 
 Unlike React, Svelte's `$effect` does not track values accessed asynchronously
-(after `await` or inside `setTimeout`), which inherently reduces -- but does
-not eliminate -- the stale closure problem.
+(after `await` or inside `setTimeout`), which inherently reduces, but does
+not eliminate, the stale closure problem.
 
 ### Source code
 
@@ -479,7 +479,7 @@ From the [Svelte docs](https://svelte.dev/docs/svelte/$effect):
 
 ---
 
-## Angular -- effect() onCleanup callback
+## Angular: effect() onCleanup callback
 
 ### Mechanism
 
@@ -535,7 +535,7 @@ effect((onCleanup) => {
 
 ---
 
-## RxJS / Angular -- switchMap automatic unsubscription
+## RxJS / Angular: switchMap automatic unsubscription
 
 ### Mechanism
 
@@ -575,7 +575,7 @@ this.searchTerms$.pipe(
 
 ---
 
-## TanStack Query -- Single-retryer replacement with AbortSignal
+## TanStack Query: Single-retryer replacement with AbortSignal
 
 ### Mechanism
 
@@ -706,7 +706,7 @@ the signal is aborted, cancelling the request.
        const data = await fetch(url).then(r => r.json());
 
        if (token !== this.#currentToken) {
-         return; // a newer load() replaced our token — discard
+         return; // a newer load() replaced our token -- discard
        }
        this.applyData(data);
      }

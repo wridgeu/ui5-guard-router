@@ -6,16 +6,16 @@ UI5's native router (`sap.m.routing.Router` / `sap.ui.core.routing.Router`) has 
 
 ### 1.1 Key GitHub Issues
 
-#### SAP/openui5#3411 — "How to interrupt / override the ongoing routing?" (OPEN since Dec 2021)
+#### SAP/openui5#3411: "How to interrupt / override the ongoing routing?" (OPEN since Dec 2021)
 
 - **Reporter**: @pubmikeb (OpenUI5 1.98.0)
 - **Core scenario**: User clicks a sidebar item to navigate from view A to view B, but permissions should redirect them to view C instead. The user should **never see** view B.
 - **Attempted approaches that failed**:
-    1. `attachRoutePatternMatched` — view B flashes for a second before redirect
-    2. `attachBeforeRouteMatched` — same flash problem
-    3. `router.stop()` + `router.initialize(true)` — still navigates to B
-    4. HashChanger manipulation — doesn't help
-    5. `sap.m.library.URLHelper.redirect()` — works but forces a full page reload (performance hit)
+    1. `attachRoutePatternMatched`: view B flashes for a second before redirect
+    2. `attachBeforeRouteMatched`: same flash problem
+    3. `router.stop()` + `router.initialize(true)`: still navigates to B
+    4. HashChanger manipulation: doesn't help
+    5. `sap.m.library.URLHelper.redirect()`: works but forces a full page reload (performance hit)
 
 - **UI5 team response** (@flovogt, SAP Member):
     - Acknowledged the problem: _"interrupting the routing process is currently not easy for applications"_
@@ -37,18 +37,18 @@ UI5's native router (`sap.m.routing.Router` / `sap.ui.core.routing.Router`) has 
     - @wridgeu (Oct 2024): _"Would be awesome to build this into the router... Many ideas, not enough time to evaluate them all"_
     - Suggestion from @wridgeu to extend Router and override `parse` method (referencing [SO answer](https://stackoverflow.com/a/29167292))
 
-#### SAP/openui5#3094 — "Prevent showing the UI5 app internal page without successful authentication" (CLOSED)
+#### SAP/openui5#3094: "Prevent showing the UI5 app internal page without successful authentication" (CLOSED)
 
 - **Core scenario**: Client-side navigation can be manipulated via DevTools to bypass authentication checks
 - **SAP response** (@matz3): _"You can't fully prevent a user from manipulating code that runs on the client-side"_. Recommended server-side authorization and separate components for public/authenticated content.
 - **Key takeaway**: Client-side guards are UX measures, not security measures. Server-side authorization is still required.
 
-#### SAP/openui5#1326 — "Protect a route path" (CLOSED, 2017)
+#### SAP/openui5#1326: "Protect a route path" (CLOSED, 2017)
 
 - Earliest documented request for route-level guards in UI5
-- SAP's response: use `attachPatternMatched` — which is the "flash of unauthorized content" pattern
+- SAP's response: use `attachPatternMatched`, which is the "flash of unauthorized content" pattern
 
-#### wridgeu/ui5-poc-ewm-one-login#1 — "Prevent browser back navigation to not logged in screen"
+#### wridgeu/ui5-poc-ewm-one-login#1: "Prevent browser back navigation to not logged in screen"
 
 - **Scenario**: After login, browser back button returns to "not logged in" screen despite still being authenticated
 - **Root cause**: `navTo()` creates browser history entries, allowing users to navigate "back" to invalid states
@@ -91,7 +91,7 @@ Browser back/forward  →                  hashChanged  →  parse()
 Direct URL entry      →                  hashChanged  →  parse()
 ```
 
-By overriding `parse()`, we intercept **all** navigation at the earliest possible point — before route matching, target loading, view creation, or event firing.
+By overriding `parse()`, we intercept **all** navigation at the earliest possible point, before route matching, target loading, view creation, or event firing.
 
 ### 2.2 Architecture Overview
 
@@ -126,7 +126,7 @@ By overriding `parse()`, we intercept **all** navigation at the earliest possibl
 | `_redirecting` flag bypasses guards       | Prevents infinite loops when a guard redirects to another guarded route                                                       |
 | `_suppressNextParse` for hash restoration | `replaceHash()` fires `hashChanged` synchronously; the flag prevents double-processing                                        |
 | Strict `true` for allow                   | Only `=== true` allows navigation. Truthy values like `1`, `"yes"`, `{}` are treated as blocks to prevent accidental allows.  |
-| `.extend()` pattern, not ES6 class        | Required for UI5 class registry — enables `"routerClass": "ui5.ext.routing.Router"` in manifest.json                          |
+| `.extend()` pattern, not ES6 class        | Required for UI5 class registry; enables `"routerClass": "ui5.ext.routing.Router"` in manifest.json                            |
 
 ### 2.4 Guard API
 
@@ -171,9 +171,9 @@ router.removeGuard(guard1);
 | `router.stop()` + `initialize()` still goes to B | Not needed. Guard returns `"C"` and the router never processes B's hash.              |
 | Browser back to invalid state                    | Guard runs on every `parse()` including back/forward. Returns `false` or redirect.    |
 | `navTo()` creates history entries                | Redirects use `replaceHash` (no history entry). Blocks restore previous hash.         |
-| Guards scattered across controllers              | Centralized registration in `Component.init()` — one place for all guard logic.       |
+| Guards scattered across controllers              | Centralized registration in `Component.init()`: one place for all guard logic.         |
 | No async support (UI5's blocker)                 | Async guards natively supported. Generation counter handles concurrency.              |
-| `beforeRouteMatched` has no `preventDefault()`   | Override at `parse()` level — earlier than any event. No need for `preventDefault()`. |
+| `beforeRouteMatched` has no `preventDefault()`   | Override at `parse()` level, earlier than any event. No need for `preventDefault()`.   |
 
 ### 2.7 What This Is NOT
 
@@ -187,7 +187,7 @@ router.removeGuard(guard1);
 
 | Category              | Count   | What's Tested                                                           |
 | --------------------- | ------- | ----------------------------------------------------------------------- |
-| Drop-in replacement   | 8       | navTo, parameters, events, getRoute — all work without guards           |
+| Drop-in replacement   | 8       | navTo, parameters, events, getRoute: all work without guards             |
 | Guard API             | 5       | add/remove/chain guards, cleanup on destroy                             |
 | Allow navigation      | 3       | Global, route, async guards returning `true`                            |
 | Block navigation      | 5       | Global, route, async guards returning `false`, errors, rejections       |
@@ -237,7 +237,7 @@ When a guard redirects (e.g., "forbidden" → "home"), the redirect target's gua
 
 ### 4.3 Async guard hash desync window
 
-During async guard evaluation, the browser's URL bar shows the target hash (e.g., `#/protected`) while the guard is still deciding. If the guard ultimately blocks, the hash is restored — but there's a brief visual inconsistency.
+During async guard evaluation, the browser's URL bar shows the target hash (e.g., `#/protected`) while the guard is still deciding. If the guard ultimately blocks, the hash is restored, but there's a brief visual inconsistency.
 
 **Mitigation**: Keep async guards fast. Use sync guards for instant decisions; reserve async for backend calls.
 
@@ -251,11 +251,11 @@ If a guard returns `false` (block) on the very first navigation (where `_current
 
 ## 5. Related Work and References
 
-- [SAP/openui5#3411](https://github.com/SAP/openui5/issues/3411) — The primary issue motivating this project
-- [SAP/openui5#3094](https://github.com/SAP/openui5/issues/3094) — Auth protection (server-side vs client-side)
-- [SAP/openui5#1326](https://github.com/SAP/openui5/issues/1326) — Earliest "protect a route" request (2017)
-- [wridgeu/ui5-poc-ewm-one-login#1](https://github.com/wridgeu/ui5-poc-ewm-one-login/issues/1) — Back-navigation to invalid state
-- [CPOUI5FRAMEWORK-338](https://github.com/SAP/openui5/issues/3411#issuecomment-1012994735) — SAP internal backlog item (unimplemented as of 2026)
-- [DSAG UI5 Best Practice: Routing](https://1dsag.github.io/UI5-Best-Practice/routing/) — Community routing guidelines
-- [Vue Router Navigation Guards](https://router.vuejs.org/guide/advanced/navigation-guards.html) — The gold standard for SPA navigation guards
-- [Plunker: UI5 preventing navigation](https://embed.plnkr.co/wp6yes) — @boghyon's sample for focus handling + navigation prevention
+- [SAP/openui5#3411](https://github.com/SAP/openui5/issues/3411): The primary issue motivating this project
+- [SAP/openui5#3094](https://github.com/SAP/openui5/issues/3094): Auth protection (server-side vs client-side)
+- [SAP/openui5#1326](https://github.com/SAP/openui5/issues/1326): Earliest "protect a route" request (2017)
+- [wridgeu/ui5-poc-ewm-one-login#1](https://github.com/wridgeu/ui5-poc-ewm-one-login/issues/1): Back-navigation to invalid state
+- [CPOUI5FRAMEWORK-338](https://github.com/SAP/openui5/issues/3411#issuecomment-1012994735): SAP internal backlog item (unimplemented as of 2026)
+- [DSAG UI5 Best Practice: Routing](https://1dsag.github.io/UI5-Best-Practice/routing/): Community routing guidelines
+- [Vue Router Navigation Guards](https://router.vuejs.org/guide/advanced/navigation-guards.html): The gold standard for SPA navigation guards
+- [Plunker: UI5 preventing navigation](https://embed.plnkr.co/wp6yes): @boghyon's sample for focus handling + navigation prevention

@@ -19,7 +19,7 @@ router.addRouteGuard("settings", (context) => {
 });
 ```
 
-This is repetitive. Most frameworks solve this with **route metadata** — declaring guard requirements on the route definition, then writing one guard that checks the metadata.
+This is repetitive. Most frameworks solve this with **route metadata**: declaring guard requirements on the route definition, then writing one guard that checks the metadata.
 
 ### Framework Precedents
 
@@ -412,15 +412,15 @@ This is fully backward-compatible:
 router.addGuard((context) => {
 	const meta = context.toMeta;
 
-	// Public routes — always allow
+	// Public routes -- always allow
 	if (meta.public) return true;
 
-	// Auth required — redirect to login
+	// Auth required -- redirect to login
 	if (meta.requiresAuth && !authModel.getProperty("/isLoggedIn")) {
 		return "login";
 	}
 
-	// Role check — redirect to forbidden
+	// Role check -- redirect to forbidden
 	if (meta.roles) {
 		const userRoles = authModel.getProperty("/roles") as string[];
 		if (!meta.roles.some((r: string) => userRoles.includes(r))) {

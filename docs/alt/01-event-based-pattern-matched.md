@@ -75,6 +75,6 @@ init(): void {
 
 ## References
 
-- [SAP/openui5#3411 comment](https://github.com/SAP/openui5/issues/3411#issuecomment-999067048) — UI5 team recommends this as current workaround
-- [SAP/openui5#1326](https://github.com/SAP/openui5/issues/1326) — Original "protect a route" request with `attachPatternMatched` solution
+- [SAP/openui5#3411 comment](https://github.com/SAP/openui5/issues/3411#issuecomment-999067048): UI5 team recommends this as current workaround
+- [SAP/openui5#1326](https://github.com/SAP/openui5/issues/1326): Original "protect a route" request with `attachPatternMatched` solution
 - [DSAG UI5 Best Practice: Routing](https://1dsag.github.io/UI5-Best-Practice/routing/)

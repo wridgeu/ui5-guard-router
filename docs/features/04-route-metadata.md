@@ -12,7 +12,7 @@ router.addRouteGuard("settings", (ctx) => (isLoggedIn() ? true : "login"));
 router.addRouteGuard("dashboard", (ctx) => (isLoggedIn() && hasRole("admin") ? true : "login"));
 ```
 
-Most frameworks solve this with **route metadata** — declarative annotations on route definitions that a single guard function reads:
+Most frameworks solve this with **route metadata**, declarative annotations on route definitions that a single guard function reads:
 
 ```typescript
 // Desired: one guard, metadata-driven
@@ -214,14 +214,14 @@ interface GuardContext {
 
 **Cons:**
 
-- Two sources of truth (manifest + runtime) — could be confusing
-- Manifest section (`ui5.ext.routing`) is non-standard — UI5 tooling won't validate it
+- Two sources of truth (manifest + runtime), which could be confusing
+- Manifest section (`ui5.ext.routing`) is non-standard; UI5 tooling won't validate it
 - Shallow merge may not handle nested objects well
-- Metadata is untyped (`Record<string, unknown>`) — no compile-time safety
+- Metadata is untyped (`Record<string, unknown>`), with no compile-time safety
 
 ## Priority
 
-**Lower priority** than Features 01-03. The current API already supports metadata-driven patterns — developers can read manifest data directly in their guards. This feature is a convenience layer that reduces boilerplate but doesn't enable new capabilities.
+**Lower priority** than Features 01-03. The current API already supports metadata-driven patterns; developers can read manifest data directly in their guards. This feature is a convenience layer that reduces boilerplate but doesn't enable new capabilities.
 
 ## Compatibility
 

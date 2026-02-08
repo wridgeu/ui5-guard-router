@@ -4,8 +4,8 @@
 
 Ember.js has a unique concept among SPA frameworks: the **transition object**. When a navigation occurs, Ember creates a transition that can be:
 
-- **Aborted**: `transition.abort()` — cancel the navigation
-- **Retried**: `transition.retry()` — re-attempt the navigation later
+- **Aborted**: `transition.abort()` cancels the navigation
+- **Retried**: `transition.retry()` re-attempts the navigation later
 - **Stored**: Save the transition in a variable, redirect elsewhere, then retry it
 
 This enables powerful patterns that no other framework supports natively:
@@ -37,7 +37,7 @@ This document explores how to bring this concept to UI5.
 // Current: guards return a static result
 router.addGuard((context) => {
 	if (!isLoggedIn()) {
-		return "login"; // redirect — but the original destination is lost
+		return "login"; // redirect -- but the original destination is lost
 	}
 	return true;
 });
@@ -101,7 +101,7 @@ interface NavigationIntent {
 
 	/**
 	 * Re-attempt this navigation, bypassing all guards.
-	 * Use with caution — only after the guard condition has been resolved
+	 * Use with caution -- only after the guard condition has been resolved
 	 * (e.g., user is now authenticated).
 	 *
 	 * No-op if the transition is stale.
@@ -312,7 +312,7 @@ if (pendingHash) {
 }
 ```
 
-Note: This last pattern doesn't even need the transition object — it uses the hash string directly. The transition object is most valuable for in-memory retry within the same page session.
+Note: This last pattern doesn't even need the transition object; it uses the hash string directly. The transition object is most valuable for in-memory retry within the same page session.
 
 ---
 

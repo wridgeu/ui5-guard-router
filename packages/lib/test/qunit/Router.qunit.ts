@@ -1182,7 +1182,7 @@ QUnit.test("Destroying router while async guard is pending discards stale result
 	// Trigger navigation with slow async guard
 	router.navTo("protected");
 
-	// Destroy while guard is pending — bumps generation to invalidate result
+	// Destroy while guard is pending (bumps generation to invalidate result)
 	await nextTick(50);
 	router.destroy();
 
@@ -1322,7 +1322,7 @@ QUnit.test("Superseded navigation skips remaining guards in async chain", async 
 	});
 	router.addRouteGuard("protected", async () => {
 		executed.push(2);
-		await nextTick(100); // slow — will be superseded while waiting
+		await nextTick(100); // slow: will be superseded while waiting
 		return true;
 	});
 	router.addRouteGuard("protected", async () => {
@@ -1397,7 +1397,7 @@ QUnit.test("Duplicate navTo during pending guard is deduped (guard runs once)", 
 
 	// First navTo triggers guard
 	router.navTo("protected");
-	// Second navTo to same destination while guard is pending — should be ignored
+	// Second navTo to same destination while guard is pending, should be ignored
 	await nextTick(10);
 	router.navTo("protected");
 
@@ -1423,7 +1423,7 @@ QUnit.test("Different navTo during pending guard is NOT deduped", async function
 
 	// First navTo triggers protected guard
 	router.navTo("protected");
-	// Different destination — should NOT be deduped
+	// Different destination, should NOT be deduped
 	await nextTick(10);
 	router.navTo("detail", { id: "1" });
 
@@ -1442,7 +1442,7 @@ QUnit.test("Pending dedup does not block after guard commits", async function (a
 	router.initialize();
 	await waitForRoute(router, "home");
 
-	// First navigation — guard runs and commits
+	// First navigation: guard runs and commits
 	router.navTo("protected");
 	await waitForRoute(router, "protected");
 	assert.strictEqual(guardCallCount, 1, "Guard ran for first navigation");
@@ -1451,7 +1451,7 @@ QUnit.test("Pending dedup does not block after guard commits", async function (a
 	router.navTo("home");
 	await waitForRoute(router, "home");
 
-	// Same destination again — should work (not stuck as "pending")
+	// Same destination again, should work (not stuck as "pending")
 	router.navTo("protected");
 	await waitForRoute(router, "protected");
 	assert.strictEqual(guardCallCount, 2, "Guard ran again for second navigation");
@@ -1482,7 +1482,7 @@ QUnit.test("AbortError from guard is silenced when navigation is superseded", as
 	router.navTo("forbidden");
 	await waitForRoute(router, "forbidden");
 
-	// Wait for everything to settle — no unhandled errors should occur
+	// Wait for everything to settle; no unhandled errors should occur
 	await nextTick(300);
 	assert.ok(true, "AbortError was silenced, no unhandled error");
 });

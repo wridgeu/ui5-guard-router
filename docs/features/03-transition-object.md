@@ -23,7 +23,7 @@ if (returnTo) {
 
 This is error-prone (encoding/decoding, hash vs route name confusion) and doesn't compose well with complex route parameters.
 
-Ember.js solves this with a **transition object** — a first-class representation of the intercepted navigation that can be stored and retried.
+Ember.js solves this with a **transition object**, a first-class representation of the intercepted navigation that can be stored and retried.
 
 ## Proposed API
 
@@ -96,7 +96,7 @@ router.addGuard((context) => {
     return true;
 });
 
-// In Login.controller.ts — after successful login
+// In Login.controller.ts -- after successful login
 async onLoginSuccess() {
     const auth = this.getOwnerComponent()!.getModel("auth") as JSONModel;
     auth.setProperty("/isLoggedIn", true);
@@ -214,7 +214,7 @@ The `NavigationIntent` holds a closure over the router instance. It cannot be se
 
 ### retry() Re-runs Guards
 
-`retry()` navigates through the normal pipeline — guards run again. This is the safe default: if conditions haven't actually changed, the guard will block again rather than allowing unauthorized access.
+`retry()` navigates through the normal pipeline, so guards run again. This is the safe default: if conditions haven't actually changed, the guard will block again rather than allowing unauthorized access.
 
 `retrySkipGuards()` is the escape hatch for when the developer is certain the condition is resolved (e.g., user just completed login). This depends on Feature 02 (Guard Bypass).
 
@@ -272,6 +272,6 @@ _createNavigationIntent(toHash: string, toRoute: string, routeInfo: RouteInfo | 
 
 ## Compatibility
 
-- Additive property on `GuardContext` — existing guards that don't use `transition` are unaffected
+- Additive property on `GuardContext`; existing guards that don't use `transition` are unaffected
 - No changes to guard return types or execution flow
 - The `NavigationIntent` methods are thin wrappers around existing `navTo()`

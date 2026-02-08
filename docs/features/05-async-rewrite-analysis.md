@@ -18,12 +18,13 @@ this.getRouter().attachBeforeRouteMatched(function (oEvent) {
 });
 ```
 
-But they immediately acknowledged the problem — **this can only be synchronous**:
+But they immediately acknowledged the problem: **this can only be synchronous**:
 
 > The downside of this solution is that the `hasAccess` method has to return synchronously.
 > You can not perform any async backend calls here because the response of the backend call
 > would come later than the navigation process.
-> — @flovogt, UI5 team
+>
+> *@flovogt, UI5 team*
 
 A year later (Sept 2022), the team explicitly stated:
 
@@ -31,7 +32,8 @@ A year later (Sept 2022), the team explicitly stated:
 > and offering asynchronous options. Introducing a new synchronous concept fits not really
 > in this work stream, so **the team is still looking for a way to make this concept
 > asynchronous directly from the start**.
-> — @flovogt, UI5 team
+>
+> *@flovogt, UI5 team*
 
 As of October 2024, no solution has been implemented. The community workarounds include:
 
@@ -55,7 +57,7 @@ Our `parse()` override is the exact solution the UI5 team has been looking for:
 
 The `beforeRouteMatched` approach the UI5 team proposed is fundamentally flawed because it fires
 **after** the hash has already changed and route matching has begun. Intercepting at `parse()` is
-earlier — before any route matching, target loading, or event firing occurs.
+earlier, before any route matching, target loading, or event firing occurs.
 
 ## What "Fully Async Like TanStack" Would Actually Mean for UI5
 
@@ -145,8 +147,8 @@ HashChanger.fireHashChanged()
 
 | Module                 | Change                                                                        | Risk                             |
 | ---------------------- | ----------------------------------------------------------------------------- | -------------------------------- |
-| `Router.js`            | Add guard registry, modify `parse()` to support deferred `crossroads.parse()` | Medium — core flow but localized |
-| `Router.js`            | Add generation counter or AbortController for concurrent navigations          | Low — new internal state         |
+| `Router.js`            | Add guard registry, modify `parse()` to support deferred `crossroads.parse()` | Medium (core flow but localized)  |
+| `Router.js`            | Add generation counter or AbortController for concurrent navigations          | Low (new internal state)          |
 | `HashChanger.js`       | No change needed (parse is still called sync, just may defer internally)      | None                             |
 | `Route.js`             | No change needed (only called after guards pass)                              | None                             |
 | `Targets.js`           | No change needed (already async)                                              | None                             |
@@ -161,7 +163,7 @@ subclasses (sap.m, sap.f). Test tools can be updated to understand pending navig
 route-level middleware, no navigation state machine.
 
 **Cost estimate**: ~500 lines of framework changes across 2-3 modules. The hard part is
-not the code — it's the backward compatibility guarantee and test tool updates.
+not the code; it's the backward compatibility guarantee and test tool updates.
 
 **Why the UI5 team hasn't done it**: The `parse()` → `crossroads.parse()` call is synchronous
 and deeply entrenched. Inserting an async gap requires either:
@@ -170,7 +172,7 @@ and deeply entrenched. Inserting an async gap requires either:
 - (b) Using our library's dual-path approach (sync when possible, async when needed)
 
 Option (b) is what our library proves works. The UI5 team may not have considered it because
-the dual-path pattern is unusual — most framework authors default to "just make it all async."
+the dual-path pattern is unusual, and most framework authors default to "just make it all async."
 
 ---
 
@@ -233,7 +235,7 @@ project for the UI5 team. Would require a phased rollout with backward-compatibl
 **Why the UI5 team will probably never do this**: The ROI doesn't justify it. UI5 apps are
 predominantly enterprise CRUD with simple routing needs. TanStack's complexity is driven
 by React's rendering model and modern web patterns (SSR, streaming, suspense) that don't
-apply to UI5. The UI5 team is more likely to pursue Level 2 — native guard support without
+apply to UI5. The UI5 team is more likely to pursue Level 2, native guard support without
 a full pipeline rewrite.
 
 ### Summary: Level Comparison
@@ -286,7 +288,7 @@ The dual-path approach:
 
 ### Why This Is the Right Design
 
-The sync-first approach is not a compromise — it's optimal:
+The sync-first approach is not a compromise; it's optimal:
 
 - **Zero overhead without guards**: Direct call to `MobileRouter.prototype.parse()`
 - **Same-tick for sync guards**: Framework sees navigation as complete within the event handler
@@ -298,9 +300,9 @@ The sync-first approach is not a compromise — it's optimal:
 
 The current code has three guard-running methods:
 
-- `_runGuardListSync()` — 14 lines
-- `_finishGuardListAsync()` — 12 lines
-- `_runAllGuards()` — 10 lines (coordinator)
+- `_runGuardListSync()`: 14 lines
+- `_finishGuardListAsync()`: 12 lines
+- `_runAllGuards()`: 10 lines (coordinator)
 
 Total: ~36 lines of dual-path logic. This is not a maintenance burden.
 
@@ -431,7 +433,7 @@ _runPipeline(phases: GuardPhase[]): GuardResult | Promise<GuardResult> {
 ```
 
 **Benefit**: Adding new phases (e.g., "resolve" guards for data pre-loading) doesn't require
-modifying `parse()` or the guard runner — just add a phase to `_buildPipeline()`.
+modifying `parse()` or the guard runner; just add a phase to `_buildPipeline()`.
 
 ### AbortSignal in Guard Context
 
@@ -460,7 +462,7 @@ router.addGuard(async (context) => {
 });
 ```
 
-This is additive — guards that don't use `signal` are unaffected. The generation counter remains
+This is additive; guards that don't use `signal` are unaffected. The generation counter remains
 the primary staleness mechanism; the signal is a convenience for guards that interact with
 cancellable APIs.
 
@@ -481,7 +483,7 @@ Useful for analytics, logging, and debugging. Could be added incrementally.
 **Do not rewrite to fully async.** The sync-first design is correct for UI5's architecture and
 already solves the problem the UI5 team has been stuck on for 3+ years. Instead:
 
-1. **Refactor to a unified pipeline** when implementing leave guards — this simplifies adding
+1. **Refactor to a unified pipeline** when implementing leave guards, as this simplifies adding
    new guard phases without the complexity or performance cost of going fully async
 2. **Add `AbortSignal` to guard context** as a low-cost enhancement for async guards
 3. **Keep the generation counter** as the primary staleness mechanism

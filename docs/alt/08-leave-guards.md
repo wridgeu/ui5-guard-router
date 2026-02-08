@@ -2,7 +2,7 @@
 
 ## The Problem
 
-All major SPA frameworks provide a way to prevent navigation **away** from a route — commonly called "leave guards" or "deactivation guards". The most common use case is warning users about unsaved form data.
+All major SPA frameworks provide a way to prevent navigation **away** from a route, commonly called "leave guards" or "deactivation guards". The most common use case is warning users about unsaved form data.
 
 Currently, `ui5.ext.routing` only supports **enter guards**: guards that run when navigating **to** a route. There is no mechanism to prevent leaving a route.
 
@@ -235,7 +235,7 @@ interface NavigationIntent {
 #### Cons
 
 - **Async complexity**: Event-based patterns don't naturally support async (UI5 events are synchronous). Would need a registration-based approach to collect Promises.
-- **Order ambiguity**: Multiple listeners on the same event — who wins? Need clear priority.
+- **Order ambiguity**: Multiple listeners on the same event. Who wins? Need clear priority.
 - **Event spam**: `beforeLeave` fires for every navigation, not just route changes
 - **Implementation complexity**: The `retry()` mechanism needs careful integration with `parse()` and `_parseGeneration`
 
@@ -250,7 +250,7 @@ Provide a "blocker" API that components can create and manage.
 onInit() {
     const router = this.getOwnerComponent().getRouter() as RouterInstance;
 
-    // Create a blocker — will prevent navigation when active
+    // Create a blocker -- will prevent navigation when active
     this._blocker = router.createBlocker("editOrder", () => {
         return this._formIsDirty;
     });
@@ -320,7 +320,7 @@ Rationale:
 1. **Approach A** is the simplest and most consistent with the existing API
 2. **Approach C's NavigationIntent** can be added later as an enhancement to guard context
 3. **Approach B** is just a usage pattern on top of Approach A (no router changes needed)
-4. **Approach D** is the most powerful but also the most complex — consider only if user demand is high
+4. **Approach D** is the most powerful but also the most complex; consider only if user demand is high
 
 ### Phased Implementation
 

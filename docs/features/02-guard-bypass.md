@@ -36,7 +36,7 @@ router.navToSkipGuards("home", {});
 // In controller
 async onSave() {
     await this.saveFormData();
-    // Form is saved — skip the leave guard that checks for dirty state
+    // Form is saved -- skip the leave guard that checks for dirty state
     router.navTo("orderList", {}, undefined, false, { skipGuards: true });
 }
 ```
@@ -46,7 +46,7 @@ async onSave() {
 ```typescript
 onLogout() {
     authModel.setProperty("/isLoggedIn", false);
-    // Skip all guards — user explicitly wants to leave
+    // Skip all guards -- user explicitly wants to leave
     router.navTo("login", {}, undefined, true, { skipGuards: true });
 }
 ```
@@ -142,7 +142,7 @@ navTo(
 
 ## Scope & Limitations
 
-- **Only affects `navTo()` navigations**: Browser back/forward and direct URL entry always run guards. This is intentional — `skipGuards` is for programmatic navigation where the developer has already validated the transition.
+- **Only affects `navTo()` navigations**: Browser back/forward and direct URL entry always run guards. This is intentional; `skipGuards` is for programmatic navigation where the developer has already validated the transition.
 - **Does not affect leave guards and enter guards separately**: `skipGuards` skips the entire pipeline. A more granular `{ skipLeaveGuards: true, skipEnterGuards: false }` could be added later if needed.
 - **Single navigation**: The flag is consumed immediately. It doesn't persist across navigations.
 

@@ -26,7 +26,7 @@ Remove authentication state from the routing system entirely. Use model binding 
 ```
 
 ```typescript
-// Component.ts — simplified, no navigation for login state
+// Component.ts -- simplified, no navigation for login state
 init(): void {
     super.init();
     // Router handles only authenticated routes
@@ -60,7 +60,7 @@ The manifest routing config only contains authenticated routes:
 
 - **Simplest possible solution**: Model binding handles everything
 - **Zero history pollution**: No navigation occurs for login/logout transitions
-- **No flash**: Visibility binding is synchronous — the wrong view is never rendered
+- **No flash**: Visibility binding is synchronous; the wrong view is never rendered
 - **No dependencies**: Uses only standard UI5 binding
 - **No framework extensions**: Standard `sap.m` controls
 
@@ -108,4 +108,4 @@ This is described in detail in [wridgeu/ui5-poc-ewm-one-login#1](https://github.
 
 ## References
 
-- [wridgeu/ui5-poc-ewm-one-login#1](https://github.com/wridgeu/ui5-poc-ewm-one-login/issues/1) — Approaches A and B
+- [wridgeu/ui5-poc-ewm-one-login#1](https://github.com/wridgeu/ui5-poc-ewm-one-login/issues/1): Approaches A and B

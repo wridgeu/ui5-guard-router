@@ -1,4 +1,4 @@
-# Alternative 12: TanStack Router Deep Dive — Source Code Analysis
+# Alternative 12: TanStack Router Deep Dive, Source Code Analysis
 
 This document analyzes the actual implementation of TanStack Router's navigation guarding and blocking system, based on a direct reading of `packages/router-core/src/router.ts` from the [TanStack Router repository](https://github.com/TanStack/router).
 
@@ -13,7 +13,7 @@ This document analyzes the actual implementation of TanStack Router's navigation
 #### 1. `navigate()` → `buildAndCommitLocation()` → `commitLocation()`
 
 ```typescript
-// router.ts — navigate() delegates to buildAndCommitLocation()
+// router.ts -- navigate() delegates to buildAndCommitLocation()
 navigate: NavigateFn = async ({ to, reloadDocument, href, ... }) => {
     // ... external URL handling ...
     return this.buildAndCommitLocation({ ...rest, href, to });
@@ -22,7 +22,7 @@ navigate: NavigateFn = async ({ to, reloadDocument, href, ... }) => {
 
 `buildAndCommitLocation` builds a `ParsedLocation` and calls `commitLocation`.
 
-#### 2. `commitLocation()` — History Push with Blocker Passthrough
+#### 2. `commitLocation()`: History Push with Blocker Passthrough
 
 ```typescript
 commitLocation: CommitLocationFn = async ({ viewTransition, ignoreBlocker, ...next }) => {
@@ -41,7 +41,7 @@ commitLocation: CommitLocationFn = async ({ viewTransition, ignoreBlocker, ...ne
 
 **Critical insight**: Navigation blocking (`ignoreBlocker`) happens at the **history library level** (`@tanstack/history`), not inside the router itself. The router simply passes `ignoreBlocker` through to `history.push()` or `history.replace()`.
 
-#### 3. `load()` — The Async Navigation Pipeline
+#### 3. `load()`: The Async Navigation Pipeline
 
 ```typescript
 load: LoadFn = async (opts?) => {
@@ -75,7 +75,7 @@ load: LoadFn = async (opts?) => {
 };
 ```
 
-#### 4. `beforeLoad()` — NOT the Route Hook, Just Route Matching
+#### 4. `beforeLoad()`: NOT the Route Hook, Just Route Matching
 
 The `RouterCore.beforeLoad()` method is **not** where route `beforeLoad` hooks run. It just does synchronous work:
 
@@ -115,7 +115,7 @@ Navigate call
 For external navigations (`reloadDocument: true`), the router manually checks blockers:
 
 ```typescript
-// router.ts — navigate() for external URLs
+// router.ts -- navigate() for external URLs
 if (!rest.ignoreBlocker) {
 	const historyWithBlockers = this.history as any;
 	const blockers = historyWithBlockers.getBlockers?.() ?? [];

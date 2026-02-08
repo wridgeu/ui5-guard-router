@@ -1,10 +1,10 @@
-# ui5.ext.routing
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
+  <a href="https://openui5.org/"><img src="https://img.shields.io/badge/OpenUI5-1.144.0-green.svg" alt="UI5"></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-strict-blue.svg" alt="TypeScript"></a>
+</p>
 
-UI5 Router extension with async navigation guards. Drop-in replacement for `sap.m.routing.Router` that intercepts navigation **before** route matching, target loading, or view creation — preventing unauthorized content flashes.
-
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![UI5](https://img.shields.io/badge/OpenUI5-1.144.0-green.svg)](https://openui5.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](https://www.typescriptlang.org/)
+UI5 Router extension with async navigation guards. Drop-in replacement for `sap.m.routing.Router` that intercepts navigation **before** route matching, target loading, or view creation, preventing unauthorized content flashes.
 
 ## Why
 
@@ -18,9 +18,11 @@ This library solves all three by intercepting at the router level, before any ro
 
 ## How it works
 
-The router overrides `parse()` — the single method through which all navigation flows (programmatic `navTo`, browser back/forward, direct URL changes). Guards run before any route matching begins.
+The library extends [`sap.m.routing.Router`](https://sdk.openui5.org/api/sap.m.routing.Router) (the standard router for `sap.m` applications) and overrides `parse()`, the single method through which all navigation flows (programmatic `navTo`, browser back/forward, direct URL changes). Guards run before any route matching, target loading, or view creation begins.
 
-The pipeline stays **synchronous when all guards return plain values** and only falls back to async when a guard returns a Promise. A generation counter discards stale async results when navigations overlap, and an `AbortSignal` is passed to each guard so async work (like `fetch`) can be cancelled early.
+Because it extends the mobile router directly, all existing `sap.m.routing.Router` behavior (Targets, route events, `navTo`, back navigation) works unchanged.
+
+The guard pipeline stays **synchronous when all guards return plain values** and only falls back to async when a guard returns a Promise. A generation counter discards stale async results when navigations overlap, and an `AbortSignal` is passed to each guard so async work (like `fetch`) can be cancelled early.
 
 ## Setup
 
@@ -51,7 +53,7 @@ Add the library dependency and set the router class:
 }
 ```
 
-That's it. All your existing routes, targets, and navigation calls continue to work — the extended router is fully backward-compatible.
+That's it. All your existing routes, targets, and navigation calls continue to work; the extended router is fully backward-compatible.
 
 ### 3. Register guards in your Component
 
@@ -69,12 +71,12 @@ export default class Component extends UIComponent {
     super.init();
     const router = this.getRouter() as unknown as GuardRouter;
 
-    // Route-specific guard — redirects to "home" when not logged in
+    // Route-specific guard -- redirects to "home" when not logged in
     router.addRouteGuard("protected", (context) => {
       return isLoggedIn() ? true : "home";
     });
 
-    // Global guard — runs for every navigation
+    // Global guard -- runs for every navigation
     router.addGuard((context) => {
       if (context.toRoute === "admin" && !isAdmin()) {
         return "home";
@@ -226,11 +228,11 @@ npm start         # demo app at http://localhost:8080/index.html
 ### Tests
 
 ```bash
-# QUnit (66 unit tests) — needs the library server
+# QUnit (66 unit tests) -- needs the library server
 npm run start:lib          # Terminal 1
 npm run test:qunit         # Terminal 2
 
-# E2E (18 integration tests) — needs the demo-app server
+# E2E (18 integration tests) -- needs the demo-app server
 npm start                  # Terminal 1
 npm run test:e2e           # Terminal 2
 

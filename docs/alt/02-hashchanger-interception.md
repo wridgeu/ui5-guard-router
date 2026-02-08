@@ -2,7 +2,7 @@
 
 ## Approach
 
-Intercept hash changes at the `HashChanger` level — the absolute earliest point before the router even receives the new hash.
+Intercept hash changes at the `HashChanger` level, the absolute earliest point before the router even receives the new hash.
 
 ```typescript
 // Component.ts
@@ -65,7 +65,7 @@ hashChanger.fireHashChanged = (newHash: string, oldHash: string) => {
 
 ## Pros
 
-- Intercepts at the absolute earliest point — before any router processing
+- Intercepts at the absolute earliest point, before any router processing
 - No view creation, no events, no flash
 - Can work with any router (standard, mobile, custom)
 - Can intercept both programmatic navigation and browser events
@@ -117,5 +117,5 @@ This is a variant of the same approach applied to FLP cross-app navigation rathe
 
 ## References
 
-- [SAP/openui5#3411 comment](https://github.com/SAP/openui5/issues/3411#issuecomment-1005815277) — @jversignify's CrossApplicationNavigation interception
-- [SAP/openui5#3411 comment](https://github.com/SAP/openui5/issues/3411#issuecomment-1012948097) — UI5 team acknowledges HashChanger override as "bad practice"
+- [SAP/openui5#3411 comment](https://github.com/SAP/openui5/issues/3411#issuecomment-1005815277): @jversignify's CrossApplicationNavigation interception
+- [SAP/openui5#3411 comment](https://github.com/SAP/openui5/issues/3411#issuecomment-1012948097): UI5 team acknowledges HashChanger override as "bad practice"

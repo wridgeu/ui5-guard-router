@@ -2,7 +2,7 @@
 
 ## Problem
 
-The router currently only supports **enter guards** — functions that run before navigating **to** a route. There is no mechanism to prevent navigation **away from** a route, which is the standard approach for "unsaved changes?" dialogs in every major SPA framework (Vue's `beforeRouteLeave`, Angular's `canDeactivate`, React/TanStack's `useBlocker`).
+The router currently only supports **enter guards**, functions that run before navigating **to** a route. There is no mechanism to prevent navigation **away from** a route, which is the standard approach for "unsaved changes?" dialogs in every major SPA framework (Vue's `beforeRouteLeave`, Angular's `canDeactivate`, React/TanStack's `useBlocker`).
 
 Without leave guards, developers must either:
 
@@ -38,7 +38,7 @@ interface LeaveGuardContext {
 
 ### Design Decision: No Redirects from Leave Guards
 
-Leave guards can only return `true` (allow) or `false` (block). They cannot redirect. This matches Vue Router and Angular's convention — leave guards answer the question "can I leave?" not "where should I go instead?". Redirecting from a leave guard creates confusing UX and complex edge cases.
+Leave guards can only return `true` (allow) or `false` (block). They cannot redirect. This matches Vue Router and Angular's convention: leave guards answer the question "can I leave?" not "where should I go instead?". Redirecting from a leave guard creates confusing UX and complex edge cases.
 
 ## Usage Example
 
@@ -167,7 +167,7 @@ _runLeaveGuards(context: LeaveGuardContext): LeaveGuardResult | Promise<LeaveGua
 
 - Fully backward compatible (additive API)
 - No changes to existing guard behavior
-- Leave guards are independent of enter guards — can be adopted incrementally
+- Leave guards are independent of enter guards and can be adopted incrementally
 - Pairs naturally with Feature 02 (Guard Bypass) for "Save & Navigate" patterns
 
 ## Open Questions

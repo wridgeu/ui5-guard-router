@@ -42,10 +42,10 @@ const Router = MobileRouter.extend("custom.Router", {
 
 ## Cons
 
-- **Does NOT catch browser back/forward**: When the user presses the browser back button, the browser changes the hash via `popstate`. This triggers `hashChanged` → `parse()` — bypassing `navTo()` entirely. The guard never runs.
+- **Does NOT catch browser back/forward**: When the user presses the browser back button, the browser changes the hash via `popstate`. This triggers `hashChanged` then `parse()`, bypassing `navTo()` entirely. The guard never runs.
 - **Does NOT catch direct URL entry**: Typing `#/protected` in the address bar also triggers `hashChanged` → `parse()`.
 - **Does NOT catch `HashChanger.setHash()`**: Any code that manipulates the hash directly bypasses `navTo()`.
-- **Incomplete coverage**: Only protects the `navTo()` entry point — roughly 50% of actual navigation paths.
+- **Incomplete coverage**: Only protects the `navTo()` entry point, roughly 50% of actual navigation paths.
 
 ### The Coverage Gap Visualized
 
@@ -80,7 +80,7 @@ const Router = MobileRouter.extend("custom.Router", {
 		const newHash = event.getParameter("newHash");
 		const route = this._resolveRoute(newHash);
 		if (route && !this._checkGuard(route)) {
-			// Must restore hash — but the route is already being processed
+			// Must restore hash -- but the route is already being processed
 			// Race condition: parse() may have already started
 			this.getHashChanger().replaceHash(event.getParameter("oldHash"));
 		}
@@ -119,5 +119,5 @@ From `docs/implementation-approaches.md`:
 
 ## References
 
-- [SAP/openui5#3411 comment](https://github.com/SAP/openui5/issues/3411#issuecomment-1000067038) — Discussion of where to place guard checks
-- [docs/implementation-approaches.md](../implementation-approaches.md) — Why navTo override was rejected
+- [SAP/openui5#3411 comment](https://github.com/SAP/openui5/issues/3411#issuecomment-1000067038): Discussion of where to place guard checks
+- [docs/implementation-approaches.md](../implementation-approaches.md): Why navTo override was rejected
