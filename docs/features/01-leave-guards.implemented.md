@@ -8,7 +8,7 @@
 > - There is no separate `LeaveGuardResult` type; `LeaveGuardFn` returns `boolean | Promise<boolean>` directly
 > - Public methods return `GuardRouter` (not the proposed `RouterInstance` — which was renamed to `RouterInternal` for the internal interface)
 > - `addRouteGuard` also accepts an object form `{ beforeEnter?, beforeLeave? }` for convenience
-> - The helper is named `isPromiseLike` (not `isThenable` as sketched below)
+> - The helper is named `isPromise` (not `isThenable` as sketched below)
 > - Blocking calls `_blockNavigation()` (which clears `_pendingHash` then calls `_restoreHash()`), not `_restoreHash()` directly
 > - Open question #2 was resolved: leave guards receive the full `GuardContext`
 >

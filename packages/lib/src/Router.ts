@@ -17,15 +17,15 @@ const HistoryDirection = coreLibrary.routing.HistoryDirection;
 const LOG_COMPONENT = "ui5.ext.routing.Router";
 
 function isGuardRedirect(value: GuardResult): value is GuardRedirect {
-	return typeof value === "object" && value !== null && typeof value.route === "string";
+	return typeof value === "object" && value !== null;
 }
 
-function isPromiseLike<T>(value: T | Promise<T>): value is Promise<T> {
+function isPromise<T>(value: T | Promise<T>): value is Promise<T> {
 	return value instanceof Promise;
 }
 
 function isRouteGuardConfig(guard: GuardFn | RouteGuardConfig): guard is RouteGuardConfig {
-	return typeof guard !== "function";
+	return typeof guard === "object";
 }
 
 function addToGuardMap<T>(map: Map<string, T[]>, key: string, guard: T): void {
@@ -234,7 +234,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 		if (hasLeaveGuards) {
 			const leaveResult = this._runLeaveGuards(context);
 
-			if (isPromiseLike(leaveResult)) {
+			if (isPromise(leaveResult)) {
 				leaveResult
 					.then((allowed: boolean) => {
 						if (generation !== this._parseGeneration) {
@@ -287,7 +287,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 		for (let i = 0; i < guards.length; i++) {
 			try {
 				const result = guards[i](context);
-				if (isPromiseLike(result)) {
+				if (isPromise(result)) {
 					return this._continueGuardsAsync(
 						result,
 						guards,
@@ -321,7 +321,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 	): void {
 		const result = this._runEnterGuards(this._globalGuards, toRoute, context);
 
-		if (isPromiseLike(result)) {
+		if (isPromise(result)) {
 			result
 				.then((guardResult: GuardResult) => {
 					if (generation !== this._parseGeneration) {
@@ -367,7 +367,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 	): GuardResult | Promise<GuardResult> {
 		const globalResult = this._runGuards(globalGuards, context);
 
-		if (isPromiseLike(globalResult)) {
+		if (isPromise(globalResult)) {
 			return globalResult.then((r: GuardResult) => {
 				if (r !== true) return r;
 				if (context.signal.aborted) return false;
@@ -396,7 +396,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 		for (let i = 0; i < guards.length; i++) {
 			try {
 				const result = guards[i](context);
-				if (isPromiseLike(result)) {
+				if (isPromise(result)) {
 					return this._continueGuardsAsync(
 						result,
 						guards,

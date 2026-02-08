@@ -4,7 +4,7 @@
 >
 > - Uses shared `GuardContext` (including `signal: AbortSignal`) rather than a separate `LeaveGuardContext`
 > - Public methods return `GuardRouter` (not the proposed `RouterInstance` — renamed to `RouterInternal` for the internal interface)
-> - Helper is `isPromiseLike` (not `isThenable`)
+> - Helper is `isPromise` (not `isThenable`)
 >
 > See the [README](../../README.md) for usage examples and [Feature 01](../features/01-leave-guards.md) for the feature specification. The code samples below reflect the original **proposal**, not the final implementation.
 

@@ -16,12 +16,12 @@ The router provides:
 
 ## Proposed Features
 
-| #   | Feature                                        | Priority | Depends On | Status          |
-| --- | ---------------------------------------------- | -------- | ---------- | --------------- |
+| #   | Feature                                          | Priority | Depends On | Status          |
+| --- | ------------------------------------------------ | -------- | ---------- | --------------- |
 | 01  | [Leave Guards](./01-leave-guards.implemented.md) | High     | None       | **Implemented** |
-| 02  | [Guard Bypass](./02-guard-bypass.md)           | Low      | None       | Deprioritized   |
-| 03  | [Transition Object](./03-transition-object.md) | Medium   | None       | Proposed        |
-| 04  | [Route Metadata](./04-route-metadata.md)       | Low      | None       | Proposed        |
+| 02  | [Guard Bypass](./02-guard-bypass.md)             | Low      | None       | Deprioritized   |
+| 03  | [Transition Object](./03-transition-object.md)   | Medium   | None       | Proposed        |
+| 04  | [Route Metadata](./04-route-metadata.md)         | Low      | None       | Proposed        |
 
 ## Architecture Analysis
 
