@@ -102,6 +102,13 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 	 */
 	addRouteGuard(this: RouterInternal, routeName: string, guard: GuardFn | RouteGuardConfig): GuardRouter {
 		if (isRouteGuardConfig(guard)) {
+			if (!guard.beforeEnter && !guard.beforeLeave) {
+				Log.info(
+					"addRouteGuard called with config missing both beforeEnter and beforeLeave",
+					routeName,
+					LOG_COMPONENT,
+				);
+			}
 			if (guard.beforeEnter) {
 				this.addRouteGuard(routeName, guard.beforeEnter);
 			}
@@ -235,7 +242,11 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 					})
 					.catch((error: unknown) => {
 						if (generation !== this._parseGeneration) return;
-						Log.error("Async leave guard failed, blocking navigation", String(error), LOG_COMPONENT);
+						Log.error(
+							`Async leave guard on route "${this._currentRoute}" failed, blocking navigation`,
+							String(error),
+							LOG_COMPONENT,
+						);
 						this._blockNavigation();
 					});
 				return;
@@ -276,7 +287,11 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 				}
 				if (result !== true) return false;
 			} catch (error) {
-				Log.error(`Leave guard [${i}] threw an error, blocking navigation`, String(error), LOG_COMPONENT);
+				Log.error(
+					`Leave guard [${i}] on route "${this._currentRoute}" threw, blocking navigation`,
+					String(error),
+					LOG_COMPONENT,
+				);
 				return false;
 			}
 		}
@@ -379,7 +394,11 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 				}
 				if (result !== true) return this._validateGuardResult(result);
 			} catch (error) {
-				Log.error(`Enter guard [${i}] threw an error, blocking navigation`, String(error), LOG_COMPONENT);
+				Log.error(
+					`Enter guard [${i}] for route "${context.toRoute}" threw, blocking navigation`,
+					String(error),
+					LOG_COMPONENT,
+				);
 				return false;
 			}
 		}
@@ -416,7 +435,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 			return true;
 		} catch (error) {
 			if (!context.signal.aborted) {
-				Log.error(`${label} [${guardIndex}] threw an error, blocking navigation`, String(error), LOG_COMPONENT);
+				Log.error(`${label} [${guardIndex}] threw, blocking navigation`, String(error), LOG_COMPONENT);
 			}
 			return false;
 		}
