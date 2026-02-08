@@ -8,6 +8,11 @@ UI5 Router extension with async navigation guards. Drop-in replacement for `sap.
 
 > Born from [SAP/openui5#3411](https://github.com/SAP/openui5/issues/3411), an open request since 2021 for native navigation guard support in UI5. Track the UI5 team's progress there.
 
+> [!IMPORTANT]
+> **Minimum UI5 version: 1.118**
+>
+> The library uses [`sap.ui.core.Lib`](https://sdk.openui5.org/api/sap.ui.core.Lib) for library initialization, which was introduced in **UI5 1.118**. The Router itself only depends on APIs available since 1.75 (notably [`getRouteInfoByHash`](https://sdk.openui5.org/api/sap.ui.core.routing.Router%23methods/getRouteInfoByHash)), but the library packaging sets the effective floor. Developed and tested against OpenUI5 1.144.0.
+
 ## Why
 
 UI5's native router has no way to block or redirect navigation before views are displayed. Developers resort to scattering guard logic across `attachPatternMatched` callbacks, which:
