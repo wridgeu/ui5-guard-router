@@ -2,11 +2,23 @@
 	"name": "ui5-ext-routing",
 	"version": "0.1.0",
 	"private": true,
+	"license": "MIT",
+	"main": "dist/resources/ui5/ext/routing/library.js",
+	"types": "dist/index.d.ts",
 	"description": "UI5 Router extension with async navigation guards",
 	"type": "module",
+	"files": [
+		"dist/**/*",
+		"src/**/*",
+		"ui5.yaml",
+		"tsconfig.json",
+		"README.md",
+		"LICENSE"
+	],
 	"scripts": {
 		"clean": "rimraf dist .ui5",
 		"build": "ui5 build",
+		"prepublishOnly": "npm run build",
 		"start": "ui5 serve",
 		"test": "echo \"Run tests from monorepo root: npm run test:qunit\" && exit 1",
 		"typecheck": "tsc --noEmit"
