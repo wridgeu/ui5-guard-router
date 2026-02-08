@@ -13,3 +13,7 @@
 *.yml text eol=lf
 *.md text eol=lf
 *.properties text eol=lf
+
+# GitHub Linguist overrides
+*.html linguist-vendored
+*.less linguist-vendored
