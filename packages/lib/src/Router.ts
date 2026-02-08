@@ -162,6 +162,17 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 		return this;
 	},
 
+	/**
+	 * Intercept hash changes and run the guard pipeline before route matching.
+	 *
+	 * Called by the HashChanger on every `hashChanged` event. Runs leave guards
+	 * (current route), then global + route-specific enter guards (target route).
+	 * Stays synchronous when all guards return plain values; falls back to async
+	 * when a guard returns a Promise. A generation counter discards stale results
+	 * when navigations overlap.
+	 *
+	 * @override sap.ui.core.routing.Router#parse
+	 */
 	parse(this: RouterInternal, newHash: string): void {
 		if (this._suppressNextParse) {
 			this._suppressNextParse = false;
@@ -435,7 +446,12 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 			return true;
 		} catch (error) {
 			if (!context.signal.aborted) {
-				Log.error(`${label} [${guardIndex}] threw, blocking navigation`, String(error), LOG_COMPONENT);
+				const route = label === "Leave guard" ? context.fromRoute : context.toRoute;
+				Log.error(
+					`${label} [${guardIndex}] on route "${route}" threw, blocking navigation`,
+					String(error),
+					LOG_COMPONENT,
+				);
 			}
 			return false;
 		}

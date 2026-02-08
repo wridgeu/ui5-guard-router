@@ -63,9 +63,11 @@ matching, target loading, or event firing occurs.
 |   | removeGuard()      |    | _runLeaveGuards()         |            |
 |   | addRouteGuard()    |    | _runEnterPipeline()       |            |
 |   | removeRouteGuard() |    | _runEnterGuards()         |            |
-|   | addLeaveGuard()    |    | _runGuardsSync()          |            |
-|   | removeLeaveGuard() |    | _continueGuardsAsync()      |            |
-|   +--------------------+    | _commitNavigation()       |            |
+|   | addLeaveGuard()    |    | _runRouteGuards()         |            |
+|   | removeLeaveGuard() |    | _runGuardsSync()          |            |
+|   +--------------------+    | _continueGuardsAsync()    |            |
+|                             | _validateGuardResult()    |            |
+|                             | _commitNavigation()       |            |
 |                             | _handleGuardResult()      |            |
 |                             | _blockNavigation()        |            |
 |                             | _restoreHash()            |            |
@@ -103,8 +105,12 @@ GuardRouter (public interface)      RouterInternal (internal interface)
   extends sap.m.routing.Router        extends GuardRouter
   + 6 public guard methods             + 10 state fields
     addGuard / removeGuard             + 11 internal methods
-    addRouteGuard / removeRouteGuard
-    addLeaveGuard / removeLeaveGuard
+    addRouteGuard / removeRouteGuard     (incl. _runRouteGuards,
+    addLeaveGuard / removeLeaveGuard      _validateGuardResult)
+
+  addRouteGuard / removeRouteGuard accept both:
+    - GuardFn (enter guard)
+    - { beforeEnter?, beforeLeave? } (object form)
 ```
 
 Only strict `true` allows navigation. Truthy non-boolean values (numbers, objects, etc.)
@@ -126,9 +132,11 @@ flowchart TD
     suppress -- yes --> ret1(["return<br/>consumed by _restoreHash"])
     suppress -- no --> redirect{_redirecting set?}
     redirect -- yes --> commit1(["_commitNavigation(newHash)<br/>bypass guards on redirect"])
-    redirect -- no --> samehash{"same hash as<br/>_pendingHash or _currentHash?"}
-    samehash -- yes --> ret2(["abort + bump gen, return<br/>dedup spurious hashchange"])
-    samehash -- no --> resolve[resolve route from hash]
+    redirect -- no --> currhash{"same hash as _currentHash?"}
+    currhash -- yes --> ret2(["clear _pendingHash,<br/>abort + bump gen, return"])
+    currhash -- no --> pendhash{"same hash as _pendingHash?"}
+    pendhash -- yes --> ret3(["return<br/>dedup in-flight nav"])
+    pendhash -- no --> resolve[resolve route from hash]
     resolve --> abort[abort previous AbortController]
     abort --> bump[bump _parseGeneration]
     bump --> guards{any guards registered?}

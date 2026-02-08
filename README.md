@@ -264,13 +264,13 @@ See [FLP Dirty State Research](docs/research-flp-dirty-state.md) for a detailed 
 
 ### Enter guards (`addRouteGuard`, `addGuard`)
 
-| Return value                        | Effect                                                     |
-| ----------------------------------- | ---------------------------------------------------------- |
-| `true`                              | Allow navigation                                           |
-| `false`                             | Block (stay on current route, no history entry)            |
-| `"routeName"`                       | Redirect to named route (replaces history, no extra entry) |
-| `{ route, parameters }`             | Redirect with route parameters                             |
-| anything else (`null`, `undefined`) | Treated as block                                           |
+| Return value                                   | Effect                                                              |
+| ---------------------------------------------- | ------------------------------------------------------------------- |
+| `true`                                         | Allow navigation                                                    |
+| `false`                                        | Block (stay on current route, no history entry)                     |
+| `"routeName"`                                  | Redirect to named route (replaces history, no extra entry)          |
+| `{ route, parameters?, componentTargetInfo? }` | Redirect with route parameters (and optional component target info) |
+| anything else (`null`, `undefined`)            | Treated as block                                                    |
 
 Only strict `true` allows navigation. This prevents accidental allows from truthy coercion.
 
@@ -287,14 +287,14 @@ Leave guards cannot redirect. They answer the binary question "can I leave?" —
 
 Every guard receives a `GuardContext`:
 
-| Property      | Type                     | Description                                         |
-| ------------- | ------------------------ | --------------------------------------------------- |
-| `toRoute`     | `string`                 | Target route name (empty if no match)               |
-| `toHash`      | `string`                 | Raw hash being navigated to                         |
-| `toArguments` | `Record<string, string>` | Parsed route parameters                             |
-| `fromRoute`   | `string`                 | Current route name (empty on first nav)             |
-| `fromHash`    | `string`                 | Current hash                                        |
-| `signal`      | `AbortSignal`            | Aborted when a newer navigation supersedes this one |
+| Property      | Type                                               | Description                                                    |
+| ------------- | -------------------------------------------------- | -------------------------------------------------------------- |
+| `toRoute`     | `string`                                           | Target route name (empty if no match)                          |
+| `toHash`      | `string`                                           | Raw hash being navigated to                                    |
+| `toArguments` | `Record<string, string \| Record<string, string>>` | Parsed route parameters (nested records for component targets) |
+| `fromRoute`   | `string`                                           | Current route name (empty on first nav)                        |
+| `fromHash`    | `string`                                           | Current hash                                                   |
+| `signal`      | `AbortSignal`                                      | Aborted when a newer navigation supersedes this one            |
 
 ## Guard execution order
 
