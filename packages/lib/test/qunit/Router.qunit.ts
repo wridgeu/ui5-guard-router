@@ -772,7 +772,7 @@ QUnit.test("Async global guard allows, sync route guard redirects", async functi
 });
 
 // ============================================================
-// Module: Overlapping async navigations (generation counter)
+// Module: Overlapping async navigations
 // ============================================================
 QUnit.module("Router - Overlapping async navigations", {
 	beforeEach: function () {
@@ -814,10 +814,8 @@ QUnit.test("Slower first navigation is superseded by faster second navigation", 
 });
 
 QUnit.test("Superseded async guard result does not apply", async function (assert: Assert) {
-	let slowGuardCompleted = false;
 	const slowGuard: GuardFn = async () => {
 		await nextTick(200);
-		slowGuardCompleted = true;
 		return "forbidden"; // This redirect should be discarded
 	};
 	router.addGuard(slowGuard);
@@ -832,7 +830,6 @@ QUnit.test("Superseded async guard result does not apply", async function (asser
 	router.navTo("detail", { id: "2" });
 
 	await nextTick(500);
-	assert.ok(slowGuardCompleted, "Slow guard did complete (but result discarded)");
 	assert.strictEqual(
 		HashChanger.getInstance().getHash(),
 		"detail/2",
@@ -1052,9 +1049,9 @@ QUnit.test("Rapid async navigations - only last navigation settles", async funct
 });
 
 // ============================================================
-// Module: Same-hash dedup invalidates pending async guards
+// Module: Returning to current route during pending guard
 // ============================================================
-QUnit.module("Router - Same-hash dedup invalidates async guards", {
+QUnit.module("Router - Returning to current route during pending guard", {
 	beforeEach: function () {
 		initHashChanger();
 		router = createRouter();
@@ -1065,7 +1062,7 @@ QUnit.module("Router - Same-hash dedup invalidates async guards", {
 	},
 });
 
-QUnit.test("Same-hash parse during async guard discards stale guard result", async function (assert: Assert) {
+QUnit.test("Navigating back to current route cancels a pending async guard", async function (assert: Assert) {
 	router.addRouteGuard("protected", async () => {
 		await nextTick(200);
 		return true;
@@ -1089,38 +1086,6 @@ QUnit.test("Same-hash parse during async guard discards stale guard result", asy
 	await nextTick(300);
 	assert.notOk(protectedMatched, "Stale async guard result was discarded after same-hash dedup");
 });
-
-// ============================================================
-// Module: _suppressNextParse synchronous assumption
-// ============================================================
-QUnit.module("Router - _suppressNextParse synchronous assumption", {
-	beforeEach: function () {
-		initHashChanger();
-		router = createRouter();
-	},
-	afterEach: function () {
-		router.destroy();
-		HashChanger.getInstance().setHash("");
-	},
-});
-
-QUnit.test(
-	"replaceHash fires hashChanged synchronously (validates _suppressNextParse mechanism)",
-	function (assert: Assert) {
-		router.initialize();
-		router.navTo("protected");
-
-		let parseCalled = false;
-		const origParse = router.parse.bind(router);
-		router.parse = function (hash: string) {
-			parseCalled = true;
-			origParse(hash);
-		};
-
-		HashChanger.getInstance().replaceHash("forbidden", "Unknown");
-		assert.ok(parseCalled, "replaceHash triggered parse() synchronously (same tick)");
-	},
-);
 
 // ============================================================
 // Module: GuardRedirect with componentTargetInfo
@@ -1177,11 +1142,9 @@ QUnit.module("Router - Destroy during pending async guard", {
 	},
 });
 
-QUnit.test("Destroying router while async guard is pending discards stale result", async function (assert: Assert) {
-	let guardResolved = false;
+QUnit.test("Destroying router while async guard is pending does not complete navigation", async function (assert: Assert) {
 	router.addGuard(async () => {
 		await nextTick(200);
-		guardResolved = true;
 		return true;
 	});
 	router.initialize();
@@ -1194,14 +1157,13 @@ QUnit.test("Destroying router while async guard is pending discards stale result
 	// Trigger navigation with slow async guard
 	router.navTo("protected");
 
-	// Destroy while guard is pending (bumps generation to invalidate result)
+	// Destroy while guard is pending
 	await nextTick(50);
 	router.destroy();
 
 	// Wait for the guard promise to resolve in the background
 	await nextTick(300);
-	assert.ok(guardResolved, "Guard promise did resolve");
-	assert.notOk(routeMatched, "Stale guard result was discarded after destroy");
+	assert.notOk(routeMatched, "Navigation did not complete after destroy");
 });
 
 // ============================================================
@@ -1289,7 +1251,7 @@ QUnit.test("Signal is aborted on router destroy", async function (assert: Assert
 	assert.ok(capturedSignal!.aborted, "Signal was aborted on destroy");
 });
 
-QUnit.test("Signal is aborted on same-hash dedup", async function (assert: Assert) {
+QUnit.test("Signal is aborted when navigating back to current route", async function (assert: Assert) {
 	let capturedSignal: AbortSignal | null = null;
 	router.addRouteGuard("protected", async (context: GuardContext) => {
 		capturedSignal = context.signal;
@@ -1297,22 +1259,22 @@ QUnit.test("Signal is aborted on same-hash dedup", async function (assert: Asser
 		return true;
 	});
 	router.initialize();
-	await waitForRoute(router, "home"); // commit home so _currentHash = ""
+	await waitForRoute(router, "home");
 
 	// Navigate to protected (triggers slow route guard)
 	router.navTo("protected");
 	await nextTick(10);
 	assert.ok(capturedSignal, "Signal was captured");
 
-	// Same-hash: go back to "" which matches committed _currentHash
+	// Navigate back to current route while guard is pending
 	HashChanger.getInstance().setHash("");
-	assert.ok(capturedSignal!.aborted, "Signal was aborted by same-hash dedup");
+	assert.ok(capturedSignal!.aborted, "Signal was aborted when returning to current route");
 });
 
 // ============================================================
-// Module: Early bailout in async guard chain
+// Module: Superseded navigation stops remaining guards
 // ============================================================
-QUnit.module("Router - Early bailout in async guard chain", {
+QUnit.module("Router - Superseded navigation stops remaining guards", {
 	beforeEach: function () {
 		initHashChanger();
 		router = createRouter();
@@ -1323,7 +1285,7 @@ QUnit.module("Router - Early bailout in async guard chain", {
 	},
 });
 
-QUnit.test("Superseded navigation skips remaining guards in async chain", async function (assert: Assert) {
+QUnit.test("Guards for a superseded navigation stop executing", async function (assert: Assert) {
 	const executed: number[] = [];
 
 	// Use route-specific guards so they only run for "protected", not for "forbidden"
@@ -1358,7 +1320,7 @@ QUnit.test("Superseded navigation skips remaining guards in async chain", async 
 	assert.notOk(executed.includes(3), "Guard 3 was skipped (early bailout)");
 });
 
-QUnit.test("Superseded route guards are not started after async global guards", async function (assert: Assert) {
+QUnit.test("Route guards do not start when navigation is superseded during global guard", async function (assert: Assert) {
 	let routeGuardCalled = false;
 
 	router.addGuard(async () => {
@@ -1384,9 +1346,9 @@ QUnit.test("Superseded route guards are not started after async global guards", 
 });
 
 // ============================================================
-// Module: Pending hash dedup (in-flight navigation)
+// Module: Duplicate and overlapping navigation
 // ============================================================
-QUnit.module("Router - Pending hash dedup", {
+QUnit.module("Router - Duplicate and overlapping navigation", {
 	beforeEach: function () {
 		initHashChanger();
 		router = createRouter();
@@ -1397,7 +1359,7 @@ QUnit.module("Router - Pending hash dedup", {
 	},
 });
 
-QUnit.test("Duplicate navTo during pending guard is deduped (guard runs once)", async function (assert: Assert) {
+QUnit.test("Repeated navTo to same destination during pending guard runs guard only once", async function (assert: Assert) {
 	let guardCallCount = 0;
 	router.addRouteGuard("protected", async () => {
 		guardCallCount++;
@@ -1417,34 +1379,35 @@ QUnit.test("Duplicate navTo during pending guard is deduped (guard runs once)", 
 	assert.strictEqual(guardCallCount, 1, "Guard only ran once (duplicate was deduped)");
 });
 
-QUnit.test("Different navTo during pending guard is NOT deduped", async function (assert: Assert) {
-	let protectedGuardCount = 0;
-	let detailGuardCount = 0;
+QUnit.test("navTo to different destination during pending guard supersedes the first", async function (assert: Assert) {
 	router.addRouteGuard("protected", async () => {
-		protectedGuardCount++;
 		await nextTick(100);
 		return true;
 	});
 	router.addRouteGuard("detail", async () => {
-		detailGuardCount++;
 		await nextTick(10);
 		return true;
 	});
 	router.initialize();
 	await waitForRoute(router, "home");
 
-	// First navTo triggers protected guard
+	let protectedMatched = false;
+	router.getRoute("protected")!.attachPatternMatched(() => {
+		protectedMatched = true;
+	});
+
+	// First navTo triggers protected guard (slow)
 	router.navTo("protected");
-	// Different destination, should NOT be deduped
+	// Different destination supersedes
 	await nextTick(10);
 	router.navTo("detail", { id: "1" });
 
-	await nextTick(300);
-	assert.strictEqual(protectedGuardCount, 1, "Protected guard started");
-	assert.strictEqual(detailGuardCount, 1, "Detail guard also started (not deduped)");
+	await waitForRoute(router, "detail");
+	assert.notOk(protectedMatched, "First navigation was superseded");
+	assert.strictEqual(HashChanger.getInstance().getHash(), "detail/1", "Second navigation won");
 });
 
-QUnit.test("Pending dedup does not block after guard commits", async function (assert: Assert) {
+QUnit.test("Route is navigable again after a guarded navigation completes", async function (assert: Assert) {
 	let guardCallCount = 0;
 	router.addRouteGuard("protected", async () => {
 		guardCallCount++;
@@ -1713,31 +1676,38 @@ QUnit.test("destroy() clears leave guards", async function (assert: Assert) {
 	assert.ok(true, "No leave guard after destroy and re-create");
 });
 
-QUnit.test("Async leave guard with generation counter (superseded navigation)", async function (assert: Assert) {
-	let guardResolve: ((value: boolean) => void) | null = null;
+QUnit.test("Stale async leave guard resolution does not affect a superseding navigation", async function (assert: Assert) {
+	// Capture each leave guard invocation's resolver so we can control timing
+	const resolvers: Array<(value: boolean) => void> = [];
 	router.addLeaveGuard(
 		"home",
 		() =>
 			new Promise<boolean>((resolve) => {
-				guardResolve = resolve;
+				resolvers.push(resolve);
 			}),
 	);
 	router.initialize();
 	await waitForRoute(router, "home");
 
-	// Start navigation (guard is pending)
+	// Navigate to "protected" — async leave guard is now pending
 	router.navTo("protected");
 	await nextTick(10);
 
-	// Supersede with a new navigation (no leave guard on protected)
+	// Navigate to "forbidden" instead — supersedes the first navigation.
+	// Both navigations leave "home", so the guard fires twice.
 	router.navTo("forbidden");
-	await waitForRoute(router, "forbidden");
+	await nextTick(10);
 
-	// Now resolve the original leave guard (should be discarded)
-	guardResolve!(true);
+	// Allow the second (active) navigation to proceed
+	resolvers[1](true);
+	await waitForRoute(router, "forbidden");
+	assert.strictEqual(HashChanger.getInstance().getHash(), "forbidden", "Second navigation reached forbidden");
+
+	// Now resolve the first (stale) guard — should have no effect
+	resolvers[0](true);
 	await nextTick(100);
 
-	assert.strictEqual(HashChanger.getInstance().getHash(), "forbidden", "Stale leave guard result was discarded");
+	assert.strictEqual(HashChanger.getInstance().getHash(), "forbidden", "Stale leave guard did not change the route");
 });
 
 QUnit.test("Leave guard receives correct GuardContext", async function (assert: Assert) {

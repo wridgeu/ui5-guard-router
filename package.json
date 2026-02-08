@@ -18,9 +18,10 @@
 		"build": "npm run build --workspace=packages/lib",
 		"start": "npm start --workspace=packages/demo-app",
 		"start:lib": "npm start --workspace=packages/lib",
+		"serve:demo": "npm run serve --workspace=packages/demo-app",
 		"test": "npm run test:qunit && npm run test:e2e",
-		"test:qunit": "npx wdio run packages/lib/test/wdio-qunit.conf.ts",
-		"test:e2e": "npx wdio run packages/demo-app/test/wdio.conf.ts"
+		"test:qunit": "start-server-and-test start:lib http://localhost:8080 \"npx wdio run packages/lib/test/wdio-qunit.conf.ts\"",
+		"test:e2e": "start-server-and-test serve:demo http://localhost:8080 \"npx wdio run packages/demo-app/test/wdio.conf.ts\""
 	},
 	"devDependencies": {
 		"@openui5/types": "1.144.0",
@@ -31,6 +32,7 @@
 		"oxfmt": "^0.28.0",
 		"oxlint": "^1.43.0",
 		"rimraf": "^6.0.0",
+		"start-server-and-test": "^2.1.3",
 		"typescript": "~5.7.0",
 		"wdio-qunit-service": "^2.0.0",
 		"wdio-ui5-service": "^3.0.0"
