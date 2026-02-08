@@ -1,8 +1,7 @@
-import Router from "ui5/ext/routing/Router";
 import MobileRouter from "sap/m/routing/Router";
 import HashChanger from "sap/ui/core/routing/HashChanger";
 import type { GuardRouter } from "ui5/ext/routing/types";
-import { initHashChanger } from "./testHelpers";
+import { GuardRouterClass, initHashChanger } from "./testHelpers";
 
 /**
  * Verify that ui5.ext.routing.Router is a true drop-in replacement
@@ -30,7 +29,7 @@ QUnit.module("NativeCompat - API parity", {
 	beforeEach: function () {
 		initHashChanger();
 		const [routes, config] = createRouterConfig();
-		extRouter = new (Router as any)(routes, config) as GuardRouter;
+		extRouter = new GuardRouterClass(routes, config);
 		nativeRouter = new MobileRouter(routes, config);
 	},
 	afterEach: function () {
@@ -75,7 +74,7 @@ QUnit.module("NativeCompat - Route matching", {
 	beforeEach: function () {
 		initHashChanger();
 		const [routes, config] = createRouterConfig();
-		router = new (Router as any)(routes, config) as GuardRouter;
+		router = new GuardRouterClass(routes, config);
 	},
 	afterEach: function () {
 		router.destroy();

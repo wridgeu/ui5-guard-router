@@ -1,16 +1,15 @@
-import Router from "ui5/ext/routing/Router";
 import HashChanger from "sap/ui/core/routing/HashChanger";
 import type { GuardContext, GuardFn, GuardRedirect, GuardRouter } from "ui5/ext/routing/types";
 import type { Route$PatternMatchedEvent } from "sap/ui/core/routing/Route";
 import type { Router$RouteMatchedEvent } from "sap/ui/core/routing/Router";
-import { initHashChanger, nextTick, waitForRoute, assertBlocked } from "./testHelpers";
+import { GuardRouterClass, initHashChanger, nextTick, waitForRoute, assertBlocked } from "./testHelpers";
 
 interface DetailRouteArguments {
 	id: string;
 }
 
 function createRouter(): GuardRouter {
-	return new (Router as any)(
+	return new GuardRouterClass(
 		[
 			{ name: "home", pattern: "" },
 			{ name: "protected", pattern: "protected" },
@@ -1220,7 +1219,7 @@ QUnit.test("Guard context includes an AbortSignal", async function (assert: Asse
 	await waitForRoute(router, "home");
 
 	assert.ok(capturedSignal, "Signal was provided");
-	assert.ok(capturedSignal instanceof AbortSignal, "Signal is an AbortSignal");
+	assert.ok(capturedSignal! instanceof AbortSignal, "Signal is an AbortSignal");
 	assert.notOk(capturedSignal!.aborted, "Signal is not aborted after successful navigation");
 });
 
