@@ -336,6 +336,9 @@ QUnit.module("Router - Guard execution order", {
 
 QUnit.test("Multiple global guards run sequentially, first rejection wins", async function (assert: Assert) {
 	const order: number[] = [];
+	router.initialize();
+	await waitForRoute(router, "home");
+
 	router.addGuard(() => {
 		order.push(1);
 		return true;
@@ -348,10 +351,7 @@ QUnit.test("Multiple global guards run sequentially, first rejection wins", asyn
 		order.push(3);
 		return true;
 	});
-	router.initialize();
-	await waitForRoute(router, "home");
 
-	order.length = 0;
 	router.navTo("protected");
 	await nextTick(500);
 	assert.deepEqual(order, [1, 2], "Guards ran sequentially and stopped at first rejection");
@@ -892,6 +892,9 @@ QUnit.test("Async route-specific guard returning rejected promise blocks navigat
 
 QUnit.test("Multiple async guards - first rejection short-circuits remaining", async function (assert: Assert) {
 	const order: number[] = [];
+	router.initialize();
+	await waitForRoute(router, "home");
+
 	router.addGuard(async () => {
 		await nextTick(10);
 		order.push(1);
@@ -907,10 +910,7 @@ QUnit.test("Multiple async guards - first rejection short-circuits remaining", a
 		order.push(3);
 		return true;
 	});
-	router.initialize();
-	await waitForRoute(router, "home");
 
-	order.length = 0;
 	router.navTo("protected");
 	await nextTick(500);
 	assert.deepEqual(order, [1, 2], "Third guard was short-circuited after second rejected");
