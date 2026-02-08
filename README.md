@@ -6,6 +6,8 @@
 
 UI5 Router extension with async navigation guards. Drop-in replacement for `sap.m.routing.Router` that intercepts navigation **before** route matching, target loading, or view creation, preventing unauthorized content flashes.
 
+> Born from [SAP/openui5#3411](https://github.com/SAP/openui5/issues/3411), an open request since 2021 for native navigation guard support in UI5. Track the UI5 team's progress there.
+
 ## Why
 
 UI5's native router has no way to block or redirect navigation before views are displayed. Developers resort to scattering guard logic across `attachPatternMatched` callbacks, which:
