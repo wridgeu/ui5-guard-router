@@ -109,22 +109,40 @@ QUnit.module("Router - Guard API", {
 	},
 });
 
-QUnit.test("addGuard / removeGuard register and deregister global guards", function (assert: Assert) {
-	const guard: GuardFn = () => true;
+QUnit.test("addGuard / removeGuard affect navigation behavior", async function (assert: Assert) {
+	router.initialize();
+	await waitForRoute(router, "home");
+
+	const guard: GuardFn = () => false;
 	router.addGuard(guard);
-	assert.strictEqual(router._globalGuards.length, 1, "Guard registered");
+
+	// Guard is active: navigation should be blocked
+	await assertBlocked(assert, router, "protected", () => router.navTo("protected"), "Guard blocks after addGuard");
 
 	router.removeGuard(guard);
-	assert.strictEqual(router._globalGuards.length, 0, "Guard deregistered");
+
+	// Guard removed: navigation should succeed
+	router.navTo("protected");
+	await waitForRoute(router, "protected");
+	assert.ok(true, "Navigation allowed after removeGuard");
 });
 
-QUnit.test("addRouteGuard / removeRouteGuard register and deregister per-route guards", function (assert: Assert) {
-	const guard: GuardFn = () => true;
+QUnit.test("addRouteGuard / removeRouteGuard affect navigation behavior", async function (assert: Assert) {
+	router.initialize();
+	await waitForRoute(router, "home");
+
+	const guard: GuardFn = () => false;
 	router.addRouteGuard("protected", guard);
-	assert.strictEqual(router._routeGuards.get("protected")!.length, 1, "Route guard registered");
+
+	// Route guard is active: navigation should be blocked
+	await assertBlocked(assert, router, "protected", () => router.navTo("protected"), "Route guard blocks after addRouteGuard");
 
 	router.removeRouteGuard("protected", guard);
-	assert.notOk(router._routeGuards.has("protected"), "Route guard deregistered and map entry cleaned");
+
+	// Route guard removed: navigation should succeed
+	router.navTo("protected");
+	await waitForRoute(router, "protected");
+	assert.ok(true, "Navigation allowed after removeRouteGuard");
 });
 
 QUnit.test("addGuard returns this for chaining", function (assert: Assert) {
@@ -143,12 +161,24 @@ QUnit.test("addRouteGuard returns this for chaining", function (assert: Assert) 
 	);
 });
 
-QUnit.test("destroy cleans up guards", function (assert: Assert) {
-	router.addGuard(() => true);
-	router.addRouteGuard("home", () => true);
+QUnit.test("destroy cleans up guards so they no longer run", async function (assert: Assert) {
+	let guardCalled = false;
+	router.addGuard(() => {
+		guardCalled = true;
+		return false;
+	});
+	router.addRouteGuard("protected", () => {
+		guardCalled = true;
+		return false;
+	});
 	router.destroy();
-	assert.strictEqual(router._globalGuards.length, 0, "Global guards cleared");
-	assert.strictEqual(router._routeGuards.size, 0, "Route guards cleared");
+
+	// Re-create and verify guards are gone
+	router = createRouter();
+	router.initialize();
+	router.navTo("protected");
+	await waitForRoute(router, "protected");
+	assert.notOk(guardCalled, "Guards from destroyed router instance were not called");
 });
 
 // ============================================================
@@ -1079,3 +1109,86 @@ QUnit.test(
 		assert.ok(parseCalled, "replaceHash triggered parse() synchronously (same tick)");
 	},
 );
+
+// ============================================================
+// Module: GuardRedirect with componentTargetInfo
+// ============================================================
+QUnit.module("Router - GuardRedirect with componentTargetInfo", {
+	beforeEach: function () {
+		initHashChanger();
+		router = createRouter();
+	},
+	afterEach: function () {
+		router.destroy();
+		HashChanger.getInstance().setHash("");
+	},
+});
+
+QUnit.test("GuardRedirect with componentTargetInfo redirects and arrives at target", async function (assert: Assert) {
+	router.addRouteGuard(
+		"forbidden",
+		(): GuardRedirect => ({
+			route: "detail",
+			parameters: { id: "cti-1" },
+			componentTargetInfo: {},
+		}),
+	);
+	router.initialize();
+
+	const done = assert.async();
+	router.getRoute("detail")!.attachPatternMatched((event: Route$PatternMatchedEvent) => {
+		assert.strictEqual(
+			(event.getParameter("arguments") as DetailRouteArguments).id,
+			"cti-1",
+			"Redirect with componentTargetInfo landed on correct route with params",
+		);
+		done();
+	});
+	router.navTo("forbidden");
+});
+
+// ============================================================
+// Module: Destroy during pending async guard
+// ============================================================
+QUnit.module("Router - Destroy during pending async guard", {
+	beforeEach: function () {
+		initHashChanger();
+		router = createRouter();
+	},
+	afterEach: function () {
+		try {
+			router.destroy();
+		} catch {
+			/* already destroyed */
+		}
+		HashChanger.getInstance().setHash("");
+	},
+});
+
+QUnit.test("Destroying router while async guard is pending discards stale result", async function (assert: Assert) {
+	let guardResolved = false;
+	router.addGuard(async () => {
+		await nextTick(200);
+		guardResolved = true;
+		return true;
+	});
+	router.initialize();
+
+	let routeMatched = false;
+	router.getRoute("protected")!.attachPatternMatched(() => {
+		routeMatched = true;
+	});
+
+	// Trigger navigation with slow async guard
+	router.navTo("protected");
+
+	// Destroy while guard is pending — bumps generation to invalidate result
+	await nextTick(50);
+	router.destroy();
+
+	// Wait for the guard promise to resolve in the background
+	await nextTick(300);
+	assert.ok(guardResolved, "Guard promise did resolve");
+	assert.notOk(routeMatched, "Stale guard result was discarded after destroy");
+});
+

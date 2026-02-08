@@ -22,7 +22,7 @@ packages/
 
 ## Prerequisites
 
-- Node.js >= 18
+- Node.js >= 22
 - npm >= 9 (workspaces support)
 
 ## Getting started
@@ -51,8 +51,8 @@ npm start
 npm test
 
 # Or individually
-npm run test:qunit    # 76 QUnit tests (Router + NativeRouterCompat)
-npm run test:e2e      # 24 E2E tests across 8 spec files
+npm run test:qunit    # 66 QUnit tests (Router + NativeRouterCompat)
+npm run test:e2e      # 18 E2E tests across 8 spec files
 ```
 
 ### Type checking and linting
@@ -184,4 +184,4 @@ All methods return `this` for chaining. Guards can be added or removed at any ti
 
 ## License
 
-Apache-2.0
+MIT

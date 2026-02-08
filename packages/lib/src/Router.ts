@@ -1,7 +1,7 @@
 import MobileRouter from "sap/m/routing/Router";
 import Log from "sap/base/Log";
 import coreLibrary from "sap/ui/core/library";
-import type { GuardFn, GuardContext, GuardResult, GuardRedirect, RouterInstance } from "./types";
+import type { GuardFn, GuardContext, GuardResult, GuardRedirect, RouterInternal } from "./types";
 
 const HistoryDirection = coreLibrary.routing.HistoryDirection;
 
@@ -31,7 +31,7 @@ function isThenable(value: GuardResult | Promise<GuardResult>): value is Promise
  * @extends sap.m.routing.Router
  */
 const Router = MobileRouter.extend("ui5.ext.routing.Router", {
-	constructor: function (this: RouterInstance, ...args: unknown[]) {
+	constructor: function (this: RouterInternal, ...args: unknown[]) {
 		MobileRouter.prototype.constructor.apply(this, args);
 		this._globalGuards = [];
 		this._routeGuards = new Map<string, GuardFn[]>();
@@ -45,7 +45,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 	/**
 	 * Register a global guard that runs for every navigation.
 	 */
-	addGuard(this: RouterInstance, guard: GuardFn): RouterInstance {
+	addGuard(this: RouterInternal, guard: GuardFn): RouterInternal {
 		this._globalGuards.push(guard);
 		return this;
 	},
@@ -53,7 +53,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 	/**
 	 * Remove a previously registered global guard.
 	 */
-	removeGuard(this: RouterInstance, guard: GuardFn): RouterInstance {
+	removeGuard(this: RouterInternal, guard: GuardFn): RouterInternal {
 		const index = this._globalGuards.indexOf(guard);
 		if (index !== -1) {
 			this._globalGuards.splice(index, 1);
@@ -64,7 +64,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 	/**
 	 * Register a guard for a specific route.
 	 */
-	addRouteGuard(this: RouterInstance, routeName: string, guard: GuardFn): RouterInstance {
+	addRouteGuard(this: RouterInternal, routeName: string, guard: GuardFn): RouterInternal {
 		if (!this._routeGuards.has(routeName)) {
 			this._routeGuards.set(routeName, []);
 		}
@@ -75,7 +75,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 	/**
 	 * Remove a guard from a specific route.
 	 */
-	removeRouteGuard(this: RouterInstance, routeName: string, guard: GuardFn): RouterInstance {
+	removeRouteGuard(this: RouterInternal, routeName: string, guard: GuardFn): RouterInternal {
 		const guards = this._routeGuards.get(routeName);
 		if (guards) {
 			const index = guards.indexOf(guard);
@@ -89,7 +89,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 		return this;
 	},
 
-	parse(this: RouterInstance, newHash: string): void {
+	parse(this: RouterInternal, newHash: string): void {
 		if (this._suppressNextParse) {
 			this._suppressNextParse = false;
 			return;
@@ -156,7 +156,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 	},
 
 	/** Delegate to the parent router and update internal state. */
-	_commitNavigation(this: RouterInstance, hash: string, route?: string): void {
+	_commitNavigation(this: RouterInternal, hash: string, route?: string): void {
 		MobileRouter.prototype.parse.call(this, hash);
 		this._currentHash = hash;
 		this._currentRoute = route ?? this.getRouteInfoByHash(hash)?.name ?? "";
@@ -164,7 +164,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 
 	/** Run global guards, then route-specific guards. Stays sync when possible. */
 	_runAllGuards(
-		this: RouterInstance,
+		this: RouterInternal,
 		globalGuards: GuardFn[],
 		toRoute: string,
 		context: GuardContext,
@@ -182,14 +182,14 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 	},
 
 	/** Run route-specific guards if any are registered. */
-	_runRouteGuards(this: RouterInstance, toRoute: string, context: GuardContext): GuardResult | Promise<GuardResult> {
+	_runRouteGuards(this: RouterInternal, toRoute: string, context: GuardContext): GuardResult | Promise<GuardResult> {
 		if (!toRoute || !this._routeGuards.has(toRoute)) return true;
 		return this._runGuardListSync(this._routeGuards.get(toRoute)!, context);
 	},
 
 	/** Run guards sync; switch to async path if a Promise is returned. */
 	_runGuardListSync(
-		this: RouterInstance,
+		this: RouterInternal,
 		guards: GuardFn[],
 		context: GuardContext,
 	): GuardResult | Promise<GuardResult> {
@@ -210,7 +210,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 
 	/** Continue guard list async from the first Promise onward. */
 	async _finishGuardListAsync(
-		this: RouterInstance,
+		this: RouterInternal,
 		pendingResult: Promise<GuardResult>,
 		guards: GuardFn[],
 		currentIndex: number,
@@ -232,7 +232,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 	},
 
 	/** Validate a non-true guard result; invalid values become false. */
-	_validateGuardResult(this: RouterInstance, result: GuardResult): GuardResult {
+	_validateGuardResult(this: RouterInternal, result: GuardResult): GuardResult {
 		if (typeof result === "string" || typeof result === "boolean" || isGuardRedirect(result)) {
 			return result;
 		}
@@ -241,7 +241,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 	},
 
 	/** Handle a block or redirect result. */
-	_handleGuardResult(this: RouterInstance, result: GuardResult): void {
+	_handleGuardResult(this: RouterInternal, result: GuardResult): void {
 		if (result === false) {
 			this._restoreHash();
 			return;
@@ -262,7 +262,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 	 * Restore the previous hash without creating a history entry.
 	 * Assumes replaceHash fires hashChanged synchronously (validated by test).
 	 */
-	_restoreHash(this: RouterInstance): void {
+	_restoreHash(this: RouterInternal): void {
 		const hashChanger = this.getHashChanger();
 		if (hashChanger) {
 			this._suppressNextParse = true;
@@ -274,10 +274,11 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 		}
 	},
 
-	/** Clean up guards on destroy. */
-	destroy(this: RouterInstance) {
+	/** Clean up guards on destroy. Bumps generation to discard pending async results. */
+	destroy(this: RouterInternal) {
 		this._globalGuards = [];
 		this._routeGuards.clear();
+		++this._parseGeneration;
 		return MobileRouter.prototype.destroy.call(this);
 	},
 });

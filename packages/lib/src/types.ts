@@ -49,14 +49,27 @@ export interface GuardContext {
 export type GuardFn = (context: GuardContext) => GuardResult | Promise<GuardResult>;
 
 /**
- * Instance shape of the extended Router.
+ * Public instance shape of the extended Router.
  *
- * Extends `sap.m.routing.Router` with guard-specific state and methods.
- * Used as the `this` type in Router method bodies to provide autocomplete
- * and catch property-name typos.
+ * Extends `sap.m.routing.Router` with guard management methods.
+ * Use this type when casting `getRouter()` in application code.
  */
 export interface RouterInstance extends MobileRouter {
-	// Guard state
+	addGuard(guard: GuardFn): RouterInstance;
+	removeGuard(guard: GuardFn): RouterInstance;
+	addRouteGuard(routeName: string, guard: GuardFn): RouterInstance;
+	removeRouteGuard(routeName: string, guard: GuardFn): RouterInstance;
+}
+
+/**
+ * Full internal instance shape including private state and methods.
+ *
+ * Used as the `this` type in Router method bodies to provide autocomplete
+ * and catch property-name typos. Not intended for external consumption.
+ *
+ * @internal
+ */
+export interface RouterInternal extends RouterInstance {
 	_globalGuards: GuardFn[];
 	_routeGuards: Map<string, GuardFn[]>;
 	_currentRoute: string;
@@ -65,13 +78,6 @@ export interface RouterInstance extends MobileRouter {
 	_parseGeneration: number;
 	_suppressNextParse: boolean;
 
-	// Guard public API
-	addGuard(guard: GuardFn): RouterInstance;
-	removeGuard(guard: GuardFn): RouterInstance;
-	addRouteGuard(routeName: string, guard: GuardFn): RouterInstance;
-	removeRouteGuard(routeName: string, guard: GuardFn): RouterInstance;
-
-	// Guard internal methods
 	_commitNavigation(hash: string, route?: string): void;
 	_runAllGuards(globalGuards: GuardFn[], toRoute: string, context: GuardContext): GuardResult | Promise<GuardResult>;
 	_runRouteGuards(toRoute: string, context: GuardContext): GuardResult | Promise<GuardResult>;
