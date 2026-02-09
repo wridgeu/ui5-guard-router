@@ -99,36 +99,72 @@ export default class Component extends UIComponent {
 }
 ```
 
+## API
+
+The router extends `sap.m.routing.Router` with six methods for guard management. All methods return `this` for chaining.
+
+### Guard registration
+
+| Method | Description |
+| --- | --- |
+| `addGuard(fn)` | Register a global enter guard (runs for every navigation) |
+| `addRouteGuard(routeName, fn)` | Register an enter guard for a specific route |
+| `addRouteGuard(routeName, { beforeEnter?, beforeLeave? })` | Register enter and/or leave guards via object form |
+| `addLeaveGuard(routeName, fn)` | Register a leave guard (runs when leaving the route) |
+
+### Guard removal
+
+| Method | Description |
+| --- | --- |
+| `removeGuard(fn)` | Remove a global enter guard |
+| `removeRouteGuard(routeName, fn)` | Remove an enter guard |
+| `removeRouteGuard(routeName, { beforeEnter?, beforeLeave? })` | Remove enter and/or leave guards via object form |
+| `removeLeaveGuard(routeName, fn)` | Remove a leave guard |
+
+### Guard context
+
+Every guard receives a `GuardContext` object:
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `toRoute` | `string` | Target route name (empty if no match) |
+| `toHash` | `string` | Raw hash being navigated to |
+| `toArguments` | `Record<string, string \| Record<string, string>>` | Parsed route parameters |
+| `fromRoute` | `string` | Current route name (empty on first nav) |
+| `fromHash` | `string` | Current hash |
+| `signal` | `AbortSignal` | Aborted when a newer navigation supersedes this one |
+
+### Guard return values
+
+**Enter guards** (`addGuard`, `addRouteGuard`):
+
+| Return value | Effect |
+| --- | --- |
+| `true` | Allow navigation |
+| `false` | Block (stay on current route, no history entry) |
+| `"routeName"` | Redirect to named route (replaces history) |
+| `{ route, parameters?, componentTargetInfo? }` | Redirect with route parameters |
+| anything else (`null`, `undefined`) | Treated as block |
+
+Only strict `true` allows navigation. This prevents accidental allows from truthy coercion.
+
+**Leave guards** (`addLeaveGuard`):
+
+| Return value | Effect |
+| --- | --- |
+| `true` | Allow leaving the current route |
+| `false` (or any non-`true` value) | Block (stay on current route, no history entry) |
+
+Leave guards cannot redirect. They answer the binary question "can I leave?" — use enter guards on the target route for redirection logic.
+
+### Guard execution order
+
+1. **Leave guards** for the current route run first, in registration order
+2. **Global enter guards** run next, in registration order
+3. **Route-specific enter guards** for the target route run last, in registration order
+4. The pipeline **short-circuits** at the first non-`true` result
+
 ## Usage examples
-
-### Guard factory with model dependency
-
-Extract guards into a separate module for testability and reuse:
-
-```typescript
-// guards.ts
-import JSONModel from "sap/ui/model/json/JSONModel";
-import type { GuardFn, GuardContext, GuardResult } from "ui5/ext/routing/types";
-
-export function createAuthGuard(authModel: JSONModel): GuardFn {
-	return (context: GuardContext): GuardResult => {
-		const isLoggedIn = authModel.getProperty("/isLoggedIn");
-		return isLoggedIn ? true : "home";
-	};
-}
-
-export const forbiddenGuard: GuardFn = () => "home";
-```
-
-```typescript
-// Component.ts
-import { createAuthGuard, forbiddenGuard } from "./guards";
-
-// in init():
-const authModel = this.getModel("auth") as JSONModel;
-router.addRouteGuard("protected", createAuthGuard(authModel));
-router.addRouteGuard("forbidden", forbiddenGuard);
-```
 
 ### Async guard with AbortSignal
 
@@ -156,14 +192,20 @@ router.addGuard((context) => {
 });
 ```
 
-### Leave guard (unsaved changes)
+### Guard factories
 
-Leave guards run when navigating **away from** a route. They return only a boolean — no redirects. Register them from a controller where you have access to the view's model:
+Extract guards into a separate module for testability and reuse:
 
 ```typescript
 // guards.ts
 import JSONModel from "sap/ui/model/json/JSONModel";
-import type { LeaveGuardFn, GuardContext } from "ui5/ext/routing/types";
+import type { GuardFn, LeaveGuardFn, GuardContext, GuardResult } from "ui5/ext/routing/types";
+
+export function createAuthGuard(authModel: JSONModel): GuardFn {
+	return (context: GuardContext): GuardResult => {
+		return authModel.getProperty("/isLoggedIn") ? true : "home";
+	};
+}
 
 export function createDirtyFormGuard(formModel: JSONModel): LeaveGuardFn {
 	return (context: GuardContext): boolean => {
@@ -172,13 +214,27 @@ export function createDirtyFormGuard(formModel: JSONModel): LeaveGuardFn {
 }
 ```
 
+### Object form (enter + leave)
+
+Register both guard types in a single call:
+
 ```typescript
-// EditOrder.controller.ts
+router.addRouteGuard("editOrder", {
+	beforeEnter: createAuthGuard(authModel),
+	beforeLeave: createDirtyFormGuard(formModel),
+});
+```
+
+### Leave guard with controller lifecycle
+
+Leave guards registered in controllers should be cleaned up on exit:
+
+```typescript
 import type { GuardRouter, LeaveGuardFn } from "ui5/ext/routing/types";
-import { createDirtyFormGuard } from "../guards";
+import { createDirtyFormGuard } from "./guards";
 
 export default class EditOrderController extends Controller {
-	private _leaveGuard!: LeaveGuardFn;
+	private _leaveGuard: LeaveGuardFn;
 
 	onInit(): void {
 		const formModel = new JSONModel({ isDirty: false });
@@ -197,18 +253,7 @@ export default class EditOrderController extends Controller {
 ```
 
 > [!TIP]
-> **User feedback on blocked navigation**: When a leave guard blocks, the router silently restores the previous hash — there is no built-in confirmation dialog or toast. In production, show a `sap.m.MessageBox.confirm()` inside your leave guard (returning the user's choice as a `Promise<boolean>`) so the block is visible. The library intentionally stays low-level to avoid opinionated UX decisions.
-
-### Object form (enter + leave in one call)
-
-```typescript
-router.addRouteGuard("editOrder", {
-	beforeEnter: authGuard,
-	beforeLeave: dirtyFormGuard,
-});
-```
-
-When passing a function directly, it registers as an enter guard (backward compatible). When passing an object, `beforeEnter` and `beforeLeave` are optional — provide either or both.
+> **User feedback on blocked navigation**: When a leave guard blocks, the router silently restores the previous hash — there is no built-in confirmation dialog or toast. In production, show a `sap.m.MessageBox.confirm()` inside your leave guard (returning the user's choice as a `Promise<boolean>`) so the block is visible.
 
 ### Dynamic guard registration
 
@@ -259,64 +304,6 @@ sap.ushell.Container.deregisterDirtyStateProvider(dirtyProvider);
 - Use **`setDirtyFlag`** or **`registerDirtyStateProvider`** for FLP-level navigation (cross-app, browser close, home button)
 
 See [FLP Dirty State Research](docs/research-flp-dirty-state.md) for a detailed analysis of the FLP internals.
-
-## Guard return values
-
-### Enter guards (`addRouteGuard`, `addGuard`)
-
-| Return value                                   | Effect                                                              |
-| ---------------------------------------------- | ------------------------------------------------------------------- |
-| `true`                                         | Allow navigation                                                    |
-| `false`                                        | Block (stay on current route, no history entry)                     |
-| `"routeName"`                                  | Redirect to named route (replaces history, no extra entry)          |
-| `{ route, parameters?, componentTargetInfo? }` | Redirect with route parameters (and optional component target info) |
-| anything else (`null`, `undefined`)            | Treated as block                                                    |
-
-Only strict `true` allows navigation. This prevents accidental allows from truthy coercion.
-
-### Leave guards (`addLeaveGuard`)
-
-| Return value                      | Effect                                          |
-| --------------------------------- | ----------------------------------------------- |
-| `true`                            | Allow leaving the current route                 |
-| `false` (or any non-`true` value) | Block (stay on current route, no history entry) |
-
-Leave guards cannot redirect. They answer the binary question "can I leave?" — use enter guards on the target route for redirection logic.
-
-## Guard context
-
-Every guard receives a `GuardContext`:
-
-| Property      | Type                                               | Description                                                    |
-| ------------- | -------------------------------------------------- | -------------------------------------------------------------- |
-| `toRoute`     | `string`                                           | Target route name (empty if no match)                          |
-| `toHash`      | `string`                                           | Raw hash being navigated to                                    |
-| `toArguments` | `Record<string, string \| Record<string, string>>` | Parsed route parameters (nested records for component targets) |
-| `fromRoute`   | `string`                                           | Current route name (empty on first nav)                        |
-| `fromHash`    | `string`                                           | Current hash                                                   |
-| `signal`      | `AbortSignal`                                      | Aborted when a newer navigation supersedes this one            |
-
-## Guard execution order
-
-1. **Leave guards** for the current route run first, in registration order
-2. **Global enter guards** run next, in registration order
-3. **Route-specific enter guards** for the target route run last, in registration order
-4. The pipeline **short-circuits** at the first non-`true` result — if a leave guard blocks, enter guards never run
-
-## API
-
-| Method                                                        | Description                                               |
-| ------------------------------------------------------------- | --------------------------------------------------------- |
-| `addGuard(fn)`                                                | Register a global enter guard (runs for every navigation) |
-| `removeGuard(fn)`                                             | Remove a global enter guard                               |
-| `addRouteGuard(routeName, fn)`                                | Register an enter guard for a specific route              |
-| `addRouteGuard(routeName, { beforeEnter?, beforeLeave? })`    | Register enter and/or leave guards via object form        |
-| `removeRouteGuard(routeName, fn)`                             | Remove an enter guard                                     |
-| `removeRouteGuard(routeName, { beforeEnter?, beforeLeave? })` | Remove enter and/or leave guards via object form          |
-| `addLeaveGuard(routeName, fn)`                                | Register a leave guard (runs when leaving the route)      |
-| `removeLeaveGuard(routeName, fn)`                             | Remove a leave guard                                      |
-
-All methods return `this` for chaining.
 
 ## Limitations
 
