@@ -135,22 +135,18 @@ flowchart TD
 
     setup --> guards{guards<br/>registered?}
     guards -- "no" --> commit(["_commitNavigation()"])
-    guards -- "yes" --> pipeline
+    guards -- "yes" --> leave
 
-    subgraph pipeline [" "]
-        direction TB
-        leave{leave<br/>guards?}
-        leave -- "no" --> enter
-        leave -- "yes" --> runleave[["_runLeaveGuards()"]]
-        runleave -- "true ✓" --> enter[["_runEnterGuards()"]]
-        runleave -- "false ✗" --> pblock(["block"])
-    end
+    leave{leave guards?}
+    leave -- "no" --> enter
+    leave -- "yes" --> runleave["_runLeaveGuards()"]
+    runleave -- "true" --> enter["_runEnterGuards()"]
+    runleave -- "false" --> block
 
     enter --> result{result}
     result -- "true" --> commit
     result -- "false" --> block(["_blockNavigation()"])
-    result -- "string / object" --> redir(["_redirect()"])
-    pblock --> block
+    result -- "redirect" --> redir(["_redirect()"])
 ```
 
 **Sync vs Async:** Guards run synchronously until one returns a Promise. From that point,
