@@ -130,7 +130,7 @@ export interface RouterInternal extends GuardRouter {
 		isLeaveGuard: boolean,
 	): Promise<GuardResult>;
 	_validateGuardResult(result: GuardResult): GuardResult;
-	_handleGuardResult(result: GuardResult): void;
+	_redirect(target: string | GuardRedirect): void;
 	_blockNavigation(): void;
 	_restoreHash(): void;
 }

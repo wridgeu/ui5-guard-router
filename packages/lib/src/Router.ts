@@ -251,7 +251,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 						} else if (guardResult === false) {
 							this._blockNavigation();
 						} else {
-							this._handleGuardResult(guardResult);
+							this._redirect(guardResult);
 						}
 					})
 					.catch((error: unknown) => {
@@ -267,7 +267,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 			} else if (enterResult === false) {
 				this._blockNavigation();
 			} else {
-				this._handleGuardResult(enterResult);
+				this._redirect(enterResult);
 			}
 		};
 
@@ -481,19 +481,15 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 		return false;
 	},
 
-	/** Handle a block or redirect result. */
-	_handleGuardResult(this: RouterInternal, result: GuardResult): void {
-		if (result === false) {
-			this._blockNavigation();
-			return;
-		}
+	/** Perform a guard redirect (string route name or GuardRedirect object). */
+	_redirect(this: RouterInternal, target: string | GuardRedirect): void {
 		this._pendingHash = null;
 		this._redirecting = true;
 		try {
-			if (typeof result === "string") {
-				this.navTo(result, {}, {}, true);
-			} else if (isGuardRedirect(result)) {
-				this.navTo(result.route, result.parameters ?? {}, result.componentTargetInfo, true);
+			if (typeof target === "string") {
+				this.navTo(target, {}, {}, true);
+			} else {
+				this.navTo(target.route, target.parameters ?? {}, target.componentTargetInfo, true);
 			}
 		} finally {
 			this._redirecting = false;

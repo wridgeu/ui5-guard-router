@@ -67,7 +67,7 @@ matching, target loading, or event firing occurs.
 |   | removeLeaveGuard() |    | _continueGuardsAsync()    |            |
 |   +--------------------+    | _validateGuardResult()    |            |
 |                             | _commitNavigation()       |            |
-|                             | _handleGuardResult()      |            |
+|                             | _redirect()               |            |
 |                             | _blockNavigation()        |            |
 |                             | _restoreHash()            |            |
 |                             +---------------------------+            |
@@ -151,15 +151,10 @@ flowchart TD
     lasync --> lawait["await result, check gen"]
     lawait -- "false" --> blockNav
     lawait -- "true" --> runenter
-    runenter --> esync{sync result}
-    runenter --> easync{async result}
-    esync -- "true" --> commitNav
-    esync -- "false" --> blockNav
-    esync -- "redirect" --> handleResult(["_handleGuardResult()"])
-    easync --> eawait["await result, check gen"]
-    eawait -- "true" --> commitNav
-    eawait -- "false" --> blockNav
-    eawait -- "redirect" --> handleResult
+    runenter --> eresult{result}
+    eresult -- "true" --> commitNav
+    eresult -- "false" --> blockNav
+    eresult -- "redirect" --> redirect(["_redirect()"])
 ```
 
 **Critical design decisions:**
@@ -231,28 +226,14 @@ navigation is blocked (`false`).
 
 After guards complete, the result is applied inline:
 
-```mermaid
-flowchart TD
-    result{guard result}
-    result -- "true" --> commit["_commitNavigation()"]
-    commit --> parse["MobileRouter.prototype.parse(hash)"]
-    commit --> update["update _currentHash, _currentRoute"]
+| Result | Action |
+|--------|--------|
+| `true` | `_commitNavigation()` → update state, call parent `parse()` |
+| `false` | `_blockNavigation()` → restore previous hash |
+| `string` or `GuardRedirect` | `_redirect()` → `navTo()` with `replace=true` |
 
-    result -- "false" --> block["_blockNavigation()"]
-    block --> s1["_pendingHash = null"]
-    s1 --> s2["_restoreHash()"]
-    s2 --> s3["set _suppressNextParse = true"]
-    s3 --> s4["hashChanger.replaceHash(previousHash)"]
-    s4 --> s5(["parse fires sync, sees flag, returns"])
-
-    result -- "redirect" --> handle["_handleGuardResult(result)"]
-    handle --> redir["set _redirecting = true"]
-    redir --> navto["navTo(routeName, {}, {}, replace=true)"]
-    navto --> reenter(["re-entrant parse bypasses guards"])
-    navto --> cleanup["_redirecting = false (finally)"]
-
-    handle -- "GuardRedirect" --> redir2(["same as string, with params"])
-```
+Redirects set `_redirecting = true` before calling `navTo()`, causing the re-entrant
+`parse()` to bypass all guards and commit immediately.
 
 ## Async Concurrency Control
 
