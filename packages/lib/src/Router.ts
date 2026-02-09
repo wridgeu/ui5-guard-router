@@ -256,7 +256,11 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 					})
 					.catch((error: unknown) => {
 						if (generation !== this._parseGeneration) return;
-						Log.error("Async enter guard chain failed, blocking navigation", String(error), LOG_COMPONENT);
+						Log.error(
+							`Async enter guard for route "${toRoute}" failed, blocking navigation`,
+							String(error),
+							LOG_COMPONENT,
+						);
 						this._blockNavigation();
 					});
 				return;
