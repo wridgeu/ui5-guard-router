@@ -230,18 +230,7 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 			signal: this._abortController.signal,
 		};
 
-		// Helper to apply enter guard result (used for both sync and async paths)
-		const applyEnterResult = (result: GuardResult): void => {
-			if (result === true) {
-				this._commitNavigation(newHash, toRoute);
-			} else if (result === false) {
-				this._blockNavigation();
-			} else {
-				this._handleGuardResult(result);
-			}
-		};
-
-		// Helper to run enter guards and apply result (reused after leave guards)
+		// Run enter guards and apply result (reused after leave guards pass)
 		const runEnterGuards = (): void => {
 			const enterResult = this._runEnterGuards(this._globalGuards, toRoute, context);
 
@@ -256,7 +245,14 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 							);
 							return;
 						}
-						applyEnterResult(guardResult);
+						// Apply result: true=commit, false=block, other=redirect
+						if (guardResult === true) {
+							this._commitNavigation(newHash, toRoute);
+						} else if (guardResult === false) {
+							this._blockNavigation();
+						} else {
+							this._handleGuardResult(guardResult);
+						}
 					})
 					.catch((error: unknown) => {
 						if (generation !== this._parseGeneration) return;
@@ -265,7 +261,14 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 					});
 				return;
 			}
-			applyEnterResult(enterResult);
+			// Apply result: true=commit, false=block, other=redirect
+			if (enterResult === true) {
+				this._commitNavigation(newHash, toRoute);
+			} else if (enterResult === false) {
+				this._blockNavigation();
+			} else {
+				this._handleGuardResult(enterResult);
+			}
 		};
 
 		// Run leave guards first, then enter guards
