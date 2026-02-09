@@ -9,6 +9,7 @@ UI5 Router extension with async navigation guards. Drop-in replacement for `sap.
 > Born from [SAP/openui5#3411](https://github.com/SAP/openui5/issues/3411), an open request since 2021 for native navigation guard support in UI5. Track the UI5 team's progress there.
 >
 > **Related resources**:
+>
 > - [Stack Overflow: Preventing router from navigating](https://stackoverflow.com/questions/29165700/preventing-router-from-navigating/29167292#29167292) — native NavContainer `navigate` event (sync-only, fires after route match)
 > - [Research: Native NavContainer navigate event](docs/research-native-router-navigate-event.md) — detailed comparison with this library
 
@@ -109,54 +110,54 @@ The router extends `sap.m.routing.Router` with six methods for guard management.
 
 ### Guard registration
 
-| Method | Description |
-| --- | --- |
-| `addGuard(fn)` | Register a global enter guard (runs for every navigation) |
-| `addRouteGuard(routeName, fn)` | Register an enter guard for a specific route |
-| `addRouteGuard(routeName, { beforeEnter?, beforeLeave? })` | Register enter and/or leave guards via object form |
-| `addLeaveGuard(routeName, fn)` | Register a leave guard (runs when leaving the route) |
+| Method                                                     | Description                                               |
+| ---------------------------------------------------------- | --------------------------------------------------------- |
+| `addGuard(fn)`                                             | Register a global enter guard (runs for every navigation) |
+| `addRouteGuard(routeName, fn)`                             | Register an enter guard for a specific route              |
+| `addRouteGuard(routeName, { beforeEnter?, beforeLeave? })` | Register enter and/or leave guards via object form        |
+| `addLeaveGuard(routeName, fn)`                             | Register a leave guard (runs when leaving the route)      |
 
 ### Guard removal
 
-| Method | Description |
-| --- | --- |
-| `removeGuard(fn)` | Remove a global enter guard |
-| `removeRouteGuard(routeName, fn)` | Remove an enter guard |
+| Method                                                        | Description                                      |
+| ------------------------------------------------------------- | ------------------------------------------------ |
+| `removeGuard(fn)`                                             | Remove a global enter guard                      |
+| `removeRouteGuard(routeName, fn)`                             | Remove an enter guard                            |
 | `removeRouteGuard(routeName, { beforeEnter?, beforeLeave? })` | Remove enter and/or leave guards via object form |
-| `removeLeaveGuard(routeName, fn)` | Remove a leave guard |
+| `removeLeaveGuard(routeName, fn)`                             | Remove a leave guard                             |
 
 ### Guard context
 
 Every guard receives a `GuardContext` object:
 
-| Property | Type | Description |
-| --- | --- | --- |
-| `toRoute` | `string` | Target route name (empty if no match) |
-| `toHash` | `string` | Raw hash being navigated to |
-| `toArguments` | `Record<string, string \| Record<string, string>>` | Parsed route parameters |
-| `fromRoute` | `string` | Current route name (empty on first nav) |
-| `fromHash` | `string` | Current hash |
-| `signal` | `AbortSignal` | Aborted when a newer navigation supersedes this one |
+| Property      | Type                                               | Description                                         |
+| ------------- | -------------------------------------------------- | --------------------------------------------------- |
+| `toRoute`     | `string`                                           | Target route name (empty if no match)               |
+| `toHash`      | `string`                                           | Raw hash being navigated to                         |
+| `toArguments` | `Record<string, string \| Record<string, string>>` | Parsed route parameters                             |
+| `fromRoute`   | `string`                                           | Current route name (empty on first nav)             |
+| `fromHash`    | `string`                                           | Current hash                                        |
+| `signal`      | `AbortSignal`                                      | Aborted when a newer navigation supersedes this one |
 
 ### Guard return values
 
 **Enter guards** (`addGuard`, `addRouteGuard`):
 
-| Return value | Effect |
-| --- | --- |
-| `true` | Allow navigation |
-| `false` | Block (stay on current route, no history entry) |
-| `"routeName"` | Redirect to named route (replaces history) |
-| `{ route, parameters?, componentTargetInfo? }` | Redirect with route parameters |
-| anything else (`null`, `undefined`) | Treated as block |
+| Return value                                   | Effect                                          |
+| ---------------------------------------------- | ----------------------------------------------- |
+| `true`                                         | Allow navigation                                |
+| `false`                                        | Block (stay on current route, no history entry) |
+| `"routeName"`                                  | Redirect to named route (replaces history)      |
+| `{ route, parameters?, componentTargetInfo? }` | Redirect with route parameters                  |
+| anything else (`null`, `undefined`)            | Treated as block                                |
 
 Only strict `true` allows navigation. This prevents accidental allows from truthy coercion.
 
 **Leave guards** (`addLeaveGuard`):
 
-| Return value | Effect |
-| --- | --- |
-| `true` | Allow leaving the current route |
+| Return value                      | Effect                                          |
+| --------------------------------- | ----------------------------------------------- |
+| `true`                            | Allow leaving the current route                 |
 | `false` (or any non-`true` value) | Block (stay on current route, no history entry) |
 
 Leave guards cannot redirect. They answer the binary question "can I leave?" — use enter guards on the target route for redirection logic.

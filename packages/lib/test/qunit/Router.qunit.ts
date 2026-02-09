@@ -1690,3 +1690,51 @@ QUnit.test("removeRouteGuard with object form returns router for chaining", func
 	const result = router.removeRouteGuard("home", config);
 	assert.strictEqual(result, router, "removeRouteGuard with object form returns router");
 });
+
+// ============================================================
+// Module: Nested navigation from routeMatched handler
+// ============================================================
+QUnit.module("Router - Nested navigation from routeMatched handler", standardHooks);
+
+QUnit.test("navTo from routeMatched handler runs leave guards for the NEW route", async function (assert: Assert) {
+	// Scenario: home → protected (routeMatched fires, handler calls navTo("forbidden"))
+	// The leave guard on "protected" should run, NOT the leave guard on "home" a second time
+	let homeLeaveGuardCallCount = 0;
+	let protectedLeaveGuardCallCount = 0;
+
+	router.addLeaveGuard("home", () => {
+		homeLeaveGuardCallCount++;
+		return true;
+	});
+	router.addLeaveGuard("protected", () => {
+		protectedLeaveGuardCallCount++;
+		return true;
+	});
+
+	router.initialize();
+	await waitForRoute(router, "home");
+
+	// Reset counts after initial navigation
+	homeLeaveGuardCallCount = 0;
+	protectedLeaveGuardCallCount = 0;
+
+	// Navigate to protected, then immediately navigate to forbidden from the handler
+	router.getRoute("protected")!.attachPatternMatched(function handler() {
+		router.getRoute("protected")!.detachPatternMatched(handler);
+		// This navTo happens inside the routeMatched event for "protected"
+		// Leave guards for "protected" should run (we're leaving protected to go to forbidden)
+		router.navTo("forbidden");
+	});
+
+	router.navTo("protected");
+	await waitForRoute(router, "forbidden");
+
+	// The home leave guard should have run ONCE (when leaving home to go to protected)
+	assert.strictEqual(homeLeaveGuardCallCount, 1, "Home leave guard ran exactly once (home → protected)");
+	// The protected leave guard should run ONCE (when leaving protected to go to forbidden)
+	assert.strictEqual(
+		protectedLeaveGuardCallCount,
+		1,
+		"Protected leave guard ran exactly once (protected → forbidden from routeMatched handler)",
+	);
+});

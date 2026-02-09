@@ -350,12 +350,18 @@ const Router = MobileRouter.extend("ui5.ext.routing.Router", {
 		}
 	},
 
-	/** Delegate to the parent router and update internal state. */
+	/**
+	 * Delegate to the parent router and update internal state.
+	 *
+	 * State is updated BEFORE calling parse to ensure that if event handlers
+	 * (e.g., routeMatched) trigger nested navigation, the leave guards will
+	 * run for the correct (new) route rather than the old one.
+	 */
 	_commitNavigation(this: RouterInternal, hash: string, route?: string): void {
 		this._pendingHash = null;
-		MobileRouter.prototype.parse.call(this, hash);
 		this._currentHash = hash;
 		this._currentRoute = route ?? this.getRouteInfoByHash(hash)?.name ?? "";
+		MobileRouter.prototype.parse.call(this, hash);
 	},
 
 	/** Run global guards, then route-specific guards. Stays sync when possible. */
