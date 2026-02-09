@@ -139,7 +139,7 @@ flowchart TD
     resolve --> abort[abort previous AbortController]
     abort --> bump[bump _parseGeneration]
     bump --> guards{any guards registered?}
-    guards -- no --> commit2(["_commitNavigation<br/>(fast path)"])
+    guards -- no --> commitNav(["_commitNavigation()"])
     guards -- yes --> create["create AbortController<br/>+ GuardContext"]
     create --> leave{has leave guards?}
     leave -- no --> runenter["_runEnterGuards()"]
@@ -153,7 +153,7 @@ flowchart TD
     lawait -- "true" --> runenter
     runenter --> esync{sync result}
     runenter --> easync{async result}
-    esync -- "true" --> commitNav(["_commitNavigation()"])
+    esync -- "true" --> commitNav
     esync -- "false" --> blockNav
     esync -- "redirect" --> handleResult(["_handleGuardResult()"])
     easync --> eawait["await result, check gen"]
@@ -229,25 +229,24 @@ navigation is blocked (`false`).
 
 ## Guard Result Handling
 
-After guards complete, the result is applied inline (no separate method):
+After guards complete, the result is applied inline:
 
 ```mermaid
 flowchart TD
-    result{result === true?}
+    result{guard result}
     result -- "true" --> commit["_commitNavigation()"]
     commit --> parse["MobileRouter.prototype.parse(hash)"]
     commit --> update["update _currentHash, _currentRoute"]
 
-    result -- "non-true" --> handle["_handleGuardResult(result)"]
-
-    handle -- "false" --> block["_blockNavigation()"]
+    result -- "false" --> block["_blockNavigation()"]
     block --> s1["_pendingHash = null"]
     s1 --> s2["_restoreHash()"]
     s2 --> s3["set _suppressNextParse = true"]
     s3 --> s4["hashChanger.replaceHash(previousHash)"]
     s4 --> s5(["parse fires sync, sees flag, returns"])
 
-    handle -- "string" --> redir["set _redirecting = true"]
+    result -- "redirect" --> handle["_handleGuardResult(result)"]
+    handle --> redir["set _redirecting = true"]
     redir --> navto["navTo(routeName, {}, {}, replace=true)"]
     navto --> reenter(["re-entrant parse bypasses guards"])
     navto --> cleanup["_redirecting = false (finally)"]
