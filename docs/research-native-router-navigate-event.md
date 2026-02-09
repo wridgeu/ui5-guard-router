@@ -68,37 +68,33 @@ onNavigate: function(oEvent) {
 
 ### Critical Limitations
 
-1. **Wrong layer**: The NavContainer's `navigate` event fires AFTER the Router has already:
-   - Matched the route
-   - Updated the hash
-   - Fired `beforeRouteMatched` and `routeMatched` events
-   - Instructed the Target to display the view
+1. **Wrong layer**: The NavContainer's `navigate` event fires when the Target instructs the NavContainer to display a page. By this point:
+   - The browser hash has already changed
+   - The Router has matched the route and fired `beforeRouteMatched`
+   - The Target has resolved the view to display
 
-   By calling `preventDefault()`, you only stop the visual page transition — the route has already matched and any `patternMatched` handlers have already run.
+   By calling `preventDefault()`, you stop the page transition in the NavContainer, but the route has technically already matched.
 
 2. **Manual history management**: Since the browser hash has already changed, you must manually call `window.history.go()` to restore the previous URL.
 
 3. **Synchronous only**: The check must complete synchronously. No async permission checks.
 
-4. **Flash of content**: The target view may already be created/rendered before `navigate` fires.
-
 ## Router Events (What They Can't Do)
 
-The Router has a `beforeRouteMatched` event (since 1.46.1), but it does **not** support `preventDefault()`:
+The Router has a `beforeRouteMatched` event (since 1.46.1), but unlike NavContainer's `navigate` event, it does not have `allowPreventDefault: true` in its metadata. The event is informational — it fires "before the corresponding target is loaded and placed" but provides no mechanism to abort the navigation:
 
 ```javascript
-// This does NOT work — beforeRouteMatched cannot be prevented
+// beforeRouteMatched is informational only — no preventDefault support
 router.attachBeforeRouteMatched(function(oEvent) {
-    if (!hasAccess()) {
-        oEvent.preventDefault(); // ❌ Has no effect
-    }
+    // You can read route info here, but cannot prevent navigation
+    console.log("About to display route:", oEvent.getParameter("name"));
 });
 ```
 
-The Router events are informational only. The actual navigation prevention must happen either:
-- Before calling `navTo()` (application-level checks)
-- At the HashChanger level (complex, not recommended)
-- By overriding `Router.parse()` (what this library does)
+To actually prevent navigation, you must either:
+- Check conditions before calling `navTo()` (application-level)
+- Use NavContainer's `navigate` event (limited, as discussed)
+- Override `Router.parse()` (what this library does)
 
 ## Comparison with This Library
 
@@ -113,7 +109,6 @@ The Router events are informational only. The actual navigation prevention must 
 | Redirect support | Manual (`navTo` after prevent) | Built-in (return route name) |
 | History management | Manual (`history.go`) | Automatic |
 | AbortSignal for cleanup | No | Yes |
-| Flash of unauthorized content | Possible | No |
 
 ## The `beforeRouteMatched` Discussion
 
