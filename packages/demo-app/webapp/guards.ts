@@ -44,9 +44,9 @@ export function createAuthGuard(authModel: JSONModel): GuardFn {
  * - Using AbortSignal to cancel pending work when navigation is superseded
  *
  * @param authModel - Model containing auth state
- * @param simulatedDelayMs - Simulated API delay in milliseconds (default: 100)
+ * @param simulatedDelayMs - Simulated API delay in milliseconds (default: 50)
  */
-export function createAsyncPermissionGuard(authModel: JSONModel, simulatedDelayMs = 100): GuardFn {
+export function createAsyncPermissionGuard(authModel: JSONModel, simulatedDelayMs = 50): GuardFn {
 	return async (context: GuardContext): Promise<GuardResult> => {
 		Log.info(`Async permission check started for "${context.toRoute}"`, LOG_COMPONENT);
 
@@ -62,12 +62,6 @@ export function createAsyncPermissionGuard(authModel: JSONModel, simulatedDelayM
 					reject(new DOMException("Aborted", "AbortError"));
 				});
 			});
-
-			// Check if we were aborted during the wait
-			if (context.signal.aborted) {
-				Log.info(`Async permission check aborted for "${context.toRoute}"`, LOG_COMPONENT);
-				return false;
-			}
 
 			const isLoggedIn = authModel.getProperty("/isLoggedIn") === true;
 			Log.info(
@@ -129,6 +123,26 @@ export function createDirtyFormGuard(formModel: JSONModel): LeaveGuardFn {
 			Log.info(`Dirty form guard blocked leaving "${context.fromRoute}"`, LOG_COMPONENT);
 			return false;
 		}
+		return true;
+	};
+}
+
+/**
+ * Leave guard that logs navigation away from Home.
+ * Demonstrates controller-level leave guard registration.
+ *
+ * This guard always allows navigation (returns true) but logs the attempt.
+ * Used in Home.controller.ts to show the addLeaveGuard() pattern with
+ * proper controller lifecycle management (onInit/onExit).
+ *
+ * In real apps, this pattern is useful for:
+ * - Confirming navigation away from a page with local state
+ * - Analytics tracking of user flow
+ * - Cleanup tasks before leaving a view
+ */
+export function createHomeLeaveLogger(): LeaveGuardFn {
+	return (context: GuardContext): boolean => {
+		Log.info(`Leaving home route, navigating to "${context.toRoute}"`, LOG_COMPONENT);
 		return true;
 	};
 }

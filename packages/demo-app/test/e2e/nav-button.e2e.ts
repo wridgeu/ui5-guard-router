@@ -1,4 +1,4 @@
-import { waitForPage, fireEvent, resetAuth, expectHashToBe } from "./helpers";
+import { waitForPage, fireEvent, resetAuth } from "./helpers";
 
 describe("UI5 in-app nav back button", () => {
 	it("should navigate back to Home via the Page nav button", async () => {

@@ -9,15 +9,18 @@ import {
 } from "./guards";
 
 /**
- * Demo application showcasing all guard registration patterns.
+ * Demo application showcasing guard registration patterns.
  *
- * This component demonstrates:
+ * **Component-level guards** (shown here):
  * - Global guards (addGuard) - run for every navigation
  * - Route-specific enter guards (addRouteGuard with function)
  * - Object form guards (addRouteGuard with { beforeEnter, beforeLeave })
  *
- * Note: The standalone addLeaveGuard() API is also available but not shown here.
- * Pattern 3 (object form) is preferred when a route needs both enter and leave guards.
+ * **Controller-level guards** (see Home.controller.ts):
+ * - Standalone leave guards (addLeaveGuard) - tied to controller lifecycle
+ *
+ * Both patterns are valid. Component-level is good for app-wide concerns;
+ * controller-level is good for view-specific state protection.
  *
  * @namespace demo.app
  */
