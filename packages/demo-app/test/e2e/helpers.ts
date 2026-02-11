@@ -34,7 +34,7 @@ export async function waitForPage(controlId: string, expectedTitle: string, time
 
 					// Check that the Router's navigation has completed
 					const Component = sap.ui.require("sap/ui/core/Component");
-					const component = Component?.get(componentId);
+					const component = Component?.getComponentById(componentId);
 					const router = component?.getRouter();
 
 					// _pendingHash is null when navigation has settled
@@ -79,7 +79,7 @@ export async function fireEvent(controlId: string, eventName: string): Promise<v
 export async function resetAuth(): Promise<void> {
 	await browser.execute((componentId: string) => {
 		const Component = sap.ui.require("sap/ui/core/Component");
-		Component?.get(componentId)?.getModel("auth")?.setProperty("/isLoggedIn", false);
+		Component?.getComponentById(componentId)?.getModel("auth")?.setProperty("/isLoggedIn", false);
 	}, COMPONENT_ID);
 }
 
@@ -94,8 +94,6 @@ export async function expectHashToBe(expected: string, timeoutMsg?: string): Pro
 		},
 		{ timeout: 3000, timeoutMsg: timeoutMsg ?? `Hash did not settle to ${expected}` },
 	);
-	const hash = await browser.execute(() => window.location.hash);
-	expect(hash).toBe(expected);
 }
 
 /**
@@ -108,7 +106,7 @@ export async function setDirtyState(isDirty: boolean): Promise<void> {
 	await browser.execute(
 		(dirty: boolean, componentId: string) => {
 			const Component = sap.ui.require("sap/ui/core/Component");
-			Component?.get(componentId)?.getModel("form")?.setProperty("/isDirty", dirty);
+			Component?.getComponentById(componentId)?.getModel("form")?.setProperty("/isDirty", dirty);
 		},
 		isDirty,
 		COMPONENT_ID,

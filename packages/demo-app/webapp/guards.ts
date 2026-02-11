@@ -14,7 +14,7 @@ export function createNavigationLogger(): GuardFn {
 		const from = context.fromRoute || "(initial)";
 		const to = context.toRoute || "(no match)";
 		// Use warning level to ensure it appears in browser console
-		Log.warning(`Navigation logger: ${from} → ${to}`, LOG_COMPONENT);
+		Log.warning(`Navigation logger: ${from} → ${to}`, "", LOG_COMPONENT);
 		return true;
 	};
 }
@@ -30,7 +30,7 @@ export function createAuthGuard(authModel: JSONModel): GuardFn {
 		const isLoggedIn = authModel.getProperty("/isLoggedIn");
 		// Explicitly check for true to handle undefined/null cases safely
 		if (isLoggedIn !== true) {
-			Log.info(`Auth guard blocked navigation to "${context.toRoute}"`, LOG_COMPONENT);
+			Log.info(`Auth guard blocked navigation to "${context.toRoute}"`, "", LOG_COMPONENT);
 			return "home";
 		}
 		return true;
@@ -48,7 +48,7 @@ export function createAuthGuard(authModel: JSONModel): GuardFn {
  */
 export function createAsyncPermissionGuard(authModel: JSONModel, simulatedDelayMs = 50): GuardFn {
 	return async (context: GuardContext): Promise<GuardResult> => {
-		Log.info(`Async permission check started for "${context.toRoute}"`, LOG_COMPONENT);
+		Log.info(`Async permission check started for "${context.toRoute}"`, "", LOG_COMPONENT);
 
 		// Simulate an async API call with abort support
 		// In real apps, pass context.signal to fetch() or other cancellable APIs
@@ -66,12 +66,13 @@ export function createAsyncPermissionGuard(authModel: JSONModel, simulatedDelayM
 			const isLoggedIn = authModel.getProperty("/isLoggedIn") === true;
 			Log.info(
 				`Async permission check completed for "${context.toRoute}": ${isLoggedIn ? "allowed" : "denied"}`,
+				"",
 				LOG_COMPONENT,
 			);
 			return isLoggedIn ? true : "home";
 		} catch (error) {
 			if (error instanceof DOMException && error.name === "AbortError") {
-				Log.info(`Async permission check aborted for "${context.toRoute}"`, LOG_COMPONENT);
+				Log.info(`Async permission check aborted for "${context.toRoute}"`, "", LOG_COMPONENT);
 				return false;
 			}
 			// Re-throw unexpected errors - they will be caught and block navigation
@@ -101,7 +102,7 @@ export const forbiddenGuard: GuardFn = () => "home";
  */
 export function createRedirectWithParamsGuard(targetRoute: string): GuardFn {
 	return (context: GuardContext): GuardResult => {
-		Log.info(`Redirecting from "${context.toRoute}" to "${targetRoute}" with params`, LOG_COMPONENT);
+		Log.info(`Redirecting from "${context.toRoute}" to "${targetRoute}" with params`, "", LOG_COMPONENT);
 		return {
 			route: targetRoute,
 			parameters: context.toArguments,
@@ -120,7 +121,7 @@ export function createDirtyFormGuard(formModel: JSONModel): LeaveGuardFn {
 		const isDirty = formModel.getProperty("/isDirty");
 		// Explicitly check for true to handle undefined safely
 		if (isDirty === true) {
-			Log.info(`Dirty form guard blocked leaving "${context.fromRoute}"`, LOG_COMPONENT);
+			Log.info(`Dirty form guard blocked leaving "${context.fromRoute}"`, "", LOG_COMPONENT);
 			return false;
 		}
 		return true;
@@ -142,7 +143,7 @@ export function createDirtyFormGuard(formModel: JSONModel): LeaveGuardFn {
  */
 export function createHomeLeaveLogger(): LeaveGuardFn {
 	return (context: GuardContext): boolean => {
-		Log.info(`Leaving home route, navigating to "${context.toRoute}"`, LOG_COMPONENT);
+		Log.info(`Leaving home route, navigating to "${context.toRoute}"`, "", LOG_COMPONENT);
 		return true;
 	};
 }
@@ -170,7 +171,7 @@ export function createErrorDemoGuard(errorModel: JSONModel): GuardFn {
 	return (context: GuardContext): GuardResult => {
 		const shouldThrow = errorModel.getProperty("/simulateError") === true;
 		if (shouldThrow) {
-			Log.warning(`Error demo guard throwing for route "${context.toRoute}"`, LOG_COMPONENT);
+			Log.warning(`Error demo guard throwing for route "${context.toRoute}"`, "", LOG_COMPONENT);
 			throw new Error(`Simulated guard error for route "${context.toRoute}"`);
 		}
 		return true;
@@ -198,7 +199,7 @@ export function createAsyncErrorDemoGuard(errorModel: JSONModel, delayMs = 50): 
 
 		const shouldReject = errorModel.getProperty("/simulateAsyncError") === true;
 		if (shouldReject) {
-			Log.warning(`Async error demo guard rejecting for route "${context.toRoute}"`, LOG_COMPONENT);
+			Log.warning(`Async error demo guard rejecting for route "${context.toRoute}"`, "", LOG_COMPONENT);
 			throw new Error(`Simulated async guard error for route "${context.toRoute}"`);
 		}
 		return true;

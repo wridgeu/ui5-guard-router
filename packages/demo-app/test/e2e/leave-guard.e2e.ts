@@ -50,8 +50,7 @@ describe("Leave Guard - Dirty Form", () => {
 		// Verify dirty state was set before attempting navigation
 		const isDirty = await browser.execute(() => {
 			const Component = sap.ui.require("sap/ui/core/Component");
-			const component = Component?.registry?.get("container-demo.app");
-			return component?.getModel("form")?.getProperty("/isDirty");
+			return Component?.getComponentById("container-demo.app")?.getModel("form")?.getProperty("/isDirty");
 		});
 		expect(isDirty).toBe(true);
 
