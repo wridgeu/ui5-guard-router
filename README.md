@@ -405,8 +405,8 @@ npm start         # demo app at http://localhost:8080/index.html
 
 ```bash
 npm test              # run all tests (QUnit + E2E, sequentially)
-npm run test:qunit    # 98 unit tests only
-npm run test:e2e      # 22 integration tests only
+npm run test:qunit    # unit tests only
+npm run test:e2e      # integration tests only
 ```
 
 Each test command automatically starts and stops the appropriate server (port 8080).
