@@ -8,13 +8,15 @@ const LOG_COMPONENT = "demo.app.guards";
  * Global navigation logger guard.
  * Demonstrates global guard pattern - runs for every navigation.
  * Always returns true (allows navigation) but logs the transition.
+ *
+ * Note: Uses Log.info() which may be filtered in browser console by default.
+ * Set console log level to "Info" or use sap-ui-log-level=INFO URL parameter.
  */
 export function createNavigationLogger(): GuardFn {
 	return (context: GuardContext): GuardResult => {
 		const from = context.fromRoute || "(initial)";
 		const to = context.toRoute || "(no match)";
-		// Use warning level to ensure it appears in browser console
-		Log.warning(`Navigation logger: ${from} → ${to}`, "", LOG_COMPONENT);
+		Log.info(`Navigation logger: ${from} → ${to}`, "", LOG_COMPONENT);
 		return true;
 	};
 }

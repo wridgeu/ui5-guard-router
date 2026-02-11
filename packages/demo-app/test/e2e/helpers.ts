@@ -13,13 +13,18 @@ const COMPONENT_ID = "container-demo.app";
 
 /**
  * Wait for a UI5 Page control to be available, have the expected title,
- * AND be the currently displayed page in the App container.
+ * AND be currently visible with navigation fully settled.
  *
  * Uses browser.execute with Element.getElementById() directly to avoid
  * wdi5's control resolution incorrectly picking up sub-elements (e.g. navButton).
  *
- * Also verifies that the Router's navigation has completed (pendingHash is null)
- * to avoid race conditions with cached views from previous navigations.
+ * Combines two checks to handle all edge cases:
+ * 1. DOM visibility - ensures page is rendered and not hidden by NavContainer
+ * 2. Router state - ensures async guards have completed and navigation is settled
+ *
+ * Note: The router state check uses an internal property (_pendingHash) because
+ * there's no public API to detect when async guard evaluation completes. This is
+ * acceptable for E2E tests and is documented here for maintainability.
  */
 export async function waitForPage(controlId: string, expectedTitle: string, timeout = 10000): Promise<void> {
 	await browser.waitUntil(
@@ -32,13 +37,28 @@ export async function waitForPage(controlId: string, expectedTitle: string, time
 						return false;
 					}
 
-					// Check that the Router's navigation has completed
-					const Component = sap.ui.require("sap/ui/core/Component");
-					const component = Component?.getComponentById(componentId);
-					const router = component?.getRouter();
+					// Check 1: Verify the control is rendered and visible in the DOM.
+					// This prevents false positives from cached views that are hidden.
+					const domRef = control?.getDomRef?.();
+					if (!domRef) {
+						return false;
+					}
 
-					// _pendingHash is null when navigation has settled
-					// (either committed or blocked - but the page title check ensures committed)
+					// NavContainer hides non-current pages with display:none.
+					// Check computed style as a reliable visibility test.
+					const style = window.getComputedStyle(domRef);
+					if (style.display === "none" || style.visibility === "hidden") {
+						return false;
+					}
+
+					// Check 2: Verify the router's navigation has fully settled.
+					// This ensures async guards have completed, preventing race conditions
+					// where the page is visible but subsequent operations fail because
+					// navigation is still in progress internally.
+					// Note: _pendingHash is internal to GuardRouter. No public API exists
+					// to check if async guards are still evaluating.
+					const Component = sap.ui.require("sap/ui/core/Component");
+					const router = Component?.getComponentById(componentId)?.getRouter();
 					if (router?._pendingHash !== null) {
 						return false;
 					}
