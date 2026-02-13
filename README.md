@@ -44,7 +44,7 @@ The guard pipeline stays **synchronous when all guards return plain values** and
 ### 1. Install the library
 
 ```bash
-npm install ui5-ext-routing
+npm install ui5-lib-guard-router
 ```
 
 ### 2. Configure manifest.json
@@ -56,12 +56,12 @@ Add the library dependency and set the router class:
 	"sap.ui5": {
 		"dependencies": {
 			"libs": {
-				"ui5.ext.routing": {}
+				"ui5.guard.router": {}
 			}
 		},
 		"routing": {
 			"config": {
-				"routerClass": "ui5.ext.routing.Router"
+				"routerClass": "ui5.guard.router.Router"
 			}
 		}
 	}
@@ -74,7 +74,7 @@ That's it. All your existing routes, targets, and navigation calls continue to w
 
 ```typescript
 import UIComponent from "sap/ui/core/UIComponent";
-import type { GuardRouter } from "ui5/ext/routing/types";
+import type { GuardRouter } from "ui5/guard/router/types";
 
 export default class Component extends UIComponent {
 	static metadata = {
@@ -204,7 +204,7 @@ Extract guards into a separate module for testability and reuse:
 ```typescript
 // guards.ts
 import JSONModel from "sap/ui/model/json/JSONModel";
-import type { GuardFn, LeaveGuardFn, GuardContext, GuardResult } from "ui5/ext/routing/types";
+import type { GuardFn, LeaveGuardFn, GuardContext, GuardResult } from "ui5/guard/router/types";
 
 export function createAuthGuard(authModel: JSONModel): GuardFn {
 	return (context: GuardContext): GuardResult => {
@@ -235,7 +235,7 @@ router.addRouteGuard("editOrder", {
 Leave guards registered in controllers should be cleaned up on exit:
 
 ```typescript
-import type { GuardRouter, LeaveGuardFn } from "ui5/ext/routing/types";
+import type { GuardRouter, LeaveGuardFn } from "ui5/guard/router/types";
 import { createDirtyFormGuard } from "./guards";
 
 export default class EditOrderController extends Controller {
@@ -401,7 +401,7 @@ This follows the same pattern as [TanStack Router's `pendingComponent`](https://
 
 ```
 packages/
-  lib/          ui5.ext.routing library (Router + types)
+  lib/          ui5.guard.router library (Router + types)
   demo-app/     Demo app with auth guards (home, protected, forbidden routes)
 ```
 

@@ -1,5 +1,5 @@
 {
-	"name": "ui5-ext-routing-monorepo",
+	"name": "ui5-lib-guard-router-monorepo",
 	"private": true,
 	"author": "Marco Beier",
 	"repository": {
@@ -26,7 +26,8 @@
 		"serve:demo": "npm run serve --workspace=packages/demo-app",
 		"test": "npm run test:qunit && npm run test:e2e",
 		"test:qunit": "start-server-and-test start:lib http://localhost:8080 \"npx wdio run packages/lib/test/wdio-qunit.conf.ts\"",
-		"test:e2e": "start-server-and-test serve:demo http://localhost:8080 \"npx wdio run packages/demo-app/test/wdio.conf.ts\""
+		"test:e2e": "start-server-and-test serve:demo http://localhost:8080 \"npx wdio run packages/demo-app/test/wdio.conf.ts\"",
+		"pack:check": "npm pack -w packages/lib --dry-run"
 	},
 	"devDependencies": {
 		"@openui5/types": "1.144.0",
