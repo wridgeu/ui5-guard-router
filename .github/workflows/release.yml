@@ -25,6 +25,7 @@ jobs:
         needs: release-please
         if: needs.release-please.outputs.release_created == 'true'
         runs-on: ubuntu-latest
+        timeout-minutes: 5
         steps:
             - uses: actions/checkout@v4
 
@@ -37,6 +38,12 @@ jobs:
             - run: npm ci
 
             - run: npm run build
+
+            - name: QUnit tests
+              run: npm run test:qunit
+
+            - name: E2E tests
+              run: npm run test:e2e
 
             - run: npm publish -w packages/lib --provenance
               env:
