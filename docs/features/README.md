@@ -51,7 +51,7 @@ Deprioritized: Guard Bypass (02)
 
 ## Framework Comparison Summary
 
-| Feature               | Vue | Angular | React | TanStack | Ember | Nuxt | **ui5.ext** | After Features |
+| Feature               | Vue | Angular | React | TanStack | Ember | Nuxt | **ui5.guard** | After Features |
 | --------------------- | --- | ------- | ----- | -------- | ----- | ---- | ----------- | -------------- |
 | Global enter guard    | Yes | Yes     | No    | Yes      | Yes   | Yes  | **Yes**     | Yes            |
 | Per-route enter guard | Yes | Yes     | No    | Yes      | Yes   | Yes  | **Yes**     | Yes            |
