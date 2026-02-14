@@ -62,10 +62,12 @@ export default class Component extends UIComponent {
 		super.init();
 		const router = this.getRouter() as unknown as GuardRouter;
 
+		// Route-specific guard — redirects to "home" when not logged in
 		router.addRouteGuard("protected", (context) => {
 			return isLoggedIn() ? true : "home";
 		});
 
+		// Global guard — runs for every navigation
 		router.addGuard((context) => {
 			if (context.toRoute === "admin" && !isAdmin()) {
 				return "home";

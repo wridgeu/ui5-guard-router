@@ -289,6 +289,8 @@ sap.ushell.Container.registerDirtyStateProvider(dirtyProvider);
 sap.ushell.Container.deregisterDirtyStateProvider(dirtyProvider);
 ```
 
+> **Note**: `getDirtyFlag()` is deprecated since UI5 1.120. FLP internally uses `getDirtyFlagsAsync()` (private) which combines the flag with all registered providers. The synchronous `getDirtyFlag()` still works but should not be relied upon in new code.
+
 **How the two approaches complement each other**: FLP's data loss protection operates at the shell navigation filter level, intercepting navigation _before_ the hash change reaches your app's router. Leave guards operate _inside_ your app's router, intercepting route-to-route navigation. For complete coverage:
 
 - Use **leave guards** for in-app route changes (e.g., navigating from an edit form to a list within your app)
@@ -300,7 +302,20 @@ See the [FLP Dirty State Research](https://github.com/wridgeu/ui5-lib-guard-rout
 
 ### Redirect targets bypass guards
 
-When a guard redirects from route A to route B, route B's guards are **not** evaluated. This prevents infinite redirect loops. In practice, redirect targets are typically "safe" routes (`home`, `login`) without guards. If you need guard logic on a redirect target, run the check inline:
+When a guard redirects navigation from route A to route B, route B's guards are **not** evaluated. The redirect commits immediately.
+
+This matters when the redirect target has its own guards. For example:
+
+```
+User navigates to "dashboard"
+  → dashboard guard checks permissions, returns "profile"
+  → profile guard checks onboarding status ← this guard is SKIPPED
+  → profile view renders
+```
+
+This is intentional. Evaluating guards on redirect targets introduces the risk of infinite loops (`A → B → A → B → ...`). While solvable with a visited-set that detects cycles, the implementation adds significant complexity. This is particularly true when redirect targets have **async** guards, since the redirect chain can no longer be bracketed in a single synchronous call stack. The chain state must then persist across async boundaries and be cleared only by terminal events (commit, block, or loop detection).
+
+In practice, redirect targets are typically "safe" routes like `home` or `login` that don't have guards of their own. If you need guard logic on a redirect target, run the check inline before returning the redirect:
 
 ```typescript
 router.addRouteGuard("dashboard", (context) => {
@@ -311,17 +326,40 @@ router.addRouteGuard("dashboard", (context) => {
 });
 ```
 
-### URL bar flickers during async guards
+### URL bar shows target hash during async guards
 
-When a guard returns a Promise, the browser's URL bar shows the target hash while the guard resolves. If it blocks or redirects, the URL reverts. This is a UI5 architecture constraint — `HashChanger` updates the URL before `parse()` is called. Sync guards are not affected.
+When a guard returns a Promise (e.g., a `fetch` call to check permissions), the browser's URL bar shows the target hash while the guard is resolving. If the guard ultimately blocks or redirects, the URL reverts. However, there is a brief window where the displayed URL doesn't match the active route.
 
-Show a busy indicator while async guards resolve to communicate that navigation is in progress:
+This does **not** affect sync guards, which resolve in the same tick as the hash change (the URL flicker is imperceptible).
+
+**Why the router doesn't handle this**: UI5's `HashChanger` updates the URL and fires `hashChanged` _before_ `parse()` is called. The router cannot prevent the URL change; it can only react to it. Frameworks like Vue Router and Angular Router avoid this by controlling the URL update themselves (calling `history.pushState` only after guards resolve), but UI5's architecture doesn't allow this without intercepting at the HashChanger level, which is globally scoped and fragile.
+
+```
+User clicks link / navTo()
+        ↓
+HashChanger updates browser URL    ← URL changes HERE
+        ↓
+HashChanger fires hashChanged
+        ↓
+Router.parse() called              ← guards run HERE
+        ↓
+   ┌────┴────┐
+allowed    blocked
+   ↓          ↓
+views      _restoreHash()
+load       reverts URL
+```
+
+Show a busy indicator while async guards resolve. This communicates to the user that navigation is in progress, making the URL bar state a non-issue:
 
 ```typescript
 router.addRouteGuard("dashboard", async (context) => {
+	const app = rootView.byId("app") as App;
 	app.setBusy(true);
 	try {
-		const res = await fetch(`/api/access/${context.toRoute}`, { signal: context.signal });
+		const res = await fetch(`/api/access/${context.toRoute}`, {
+			signal: context.signal,
+		});
 		const { allowed } = await res.json();
 		return allowed ? true : "home";
 	} finally {
@@ -329,6 +367,8 @@ router.addRouteGuard("dashboard", async (context) => {
 	}
 });
 ```
+
+This follows the same pattern as [TanStack Router's `pendingComponent`](https://tanstack.com/router/latest/docs/framework/react/guide/navigation-blocking#handling-blocked-navigations): the URL reflects the intent while a loading state signals that the navigation hasn't committed yet.
 
 ## Compatibility
 
