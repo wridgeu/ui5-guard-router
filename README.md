@@ -38,8 +38,8 @@ The guard pipeline stays **synchronous when all guards return plain values** and
 
 ## Setup
 
-> [!NOTE]
-> This repository is a **proof of concept**, not a published npm package. It demonstrates that async navigation guards are feasible in UI5 today, but it is not actively maintained as a consumable library. Feel free to use the source as a reference or starting point for your own implementation.
+> [!WARNING]
+> This library is **experimental**. It is not battle-tested in production environments, and the API may change without notice. If you choose to consume it, you do so at your own risk -- make sure to pin your version and review changes before upgrading.
 
 ### 1. Install the library
 
@@ -441,6 +441,30 @@ npm run check        # all of the above
 ```bash
 npm run build        # library → packages/lib/dist/
 ```
+
+### Deployment
+
+Releases are automated via [release-please](https://github.com/googleapis/release-please) and GitHub Actions.
+
+**How it works:**
+
+1. Merge PRs with [Conventional Commits](https://www.conventionalcommits.org/) into `main` (e.g. `feat:`, `fix:`)
+2. release-please automatically opens/updates a "Release PR" that bumps the version in `package.json` and `manifest.json`, and maintains a `CHANGELOG.md`
+3. Merging the Release PR triggers the publish workflow: build, test (QUnit + E2E), then `npm publish` with provenance
+
+**One-time setup (after first merge):**
+
+1. Create an **Automation** token on [npmjs.com](https://www.npmjs.com) (Access Tokens → Generate New Token → Automation)
+2. Add it as `NPM_TOKEN` in the repo's Settings → Secrets and variables → Actions
+
+**Configuration files:**
+
+| File                            | Purpose                                            |
+| ------------------------------- | -------------------------------------------------- |
+| `.github/workflows/ci.yml`      | CI pipeline (lint, format, typecheck, build, test) |
+| `.github/workflows/release.yml` | Release-please + npm publish                       |
+| `release-please-config.json`    | Package path, extra version files                  |
+| `.release-please-manifest.json` | Current version tracker                            |
 
 ## License
 
