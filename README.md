@@ -436,6 +436,8 @@ npm run fmt:check    # oxfmt
 npm run check        # all of the above
 ```
 
+A pre-commit hook (husky + lint-staged) automatically runs `oxlint --fix` and `oxfmt` on staged files before each commit, so formatting and lint issues are fixed before they reach CI.
+
 ### Build
 
 ```bash
