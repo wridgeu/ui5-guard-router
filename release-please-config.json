@@ -9,7 +9,7 @@
 				{
 					"type": "json",
 					"path": "src/manifest.json",
-					"jsonpath": "$.sap\\.app.applicationVersion.version"
+					"jsonpath": "$['sap.app'].applicationVersion.version"
 				}
 			]
 		}
