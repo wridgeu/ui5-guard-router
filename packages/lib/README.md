@@ -3,13 +3,18 @@
 Drop-in replacement for `sap.m.routing.Router` that intercepts navigation **before** route matching, target loading, or view creation — preventing flashes of unauthorized content and polluted browser history.
 
 > Born from [SAP/openui5#3411](https://github.com/SAP/openui5/issues/3411), an open request since 2021 for native navigation guard support in UI5.
+>
+> **Related resources**:
+>
+> - [Stack Overflow: Preventing router from navigating](https://stackoverflow.com/questions/29165700/preventing-router-from-navigating/29167292#29167292) (native NavContainer `navigate` event, sync-only, fires after route match)
+> - [Research: Native NavContainer navigate event](../../docs/research-native-router-navigate-event.md) (detailed comparison with this library)
 
 > [!WARNING]
-> This library is **experimental**. The API may change without notice. Pin your version and review changes before upgrading.
+> This library is **experimental**. It is not battle-tested in production environments, and the API may change without notice. If you choose to consume it, you do so at your own risk — make sure to pin your version and review changes before upgrading.
 
 ## Why
 
-UI5's router has no way to block or redirect navigation before views render. The usual workaround — scattering guard logic across `attachPatternMatched` callbacks — causes flashes of unauthorized content, polluted browser history, and duplicated checks across controllers.
+UI5's router has no way to block or redirect navigation before views render. The usual workaround — scattering guard logic across `attachPatternMatched` callbacks — causes flashes of unauthorized content, polluted browser history, and scattered guard logic across controllers.
 
 This library solves all three by intercepting at the router level, before any route matching begins.
 
@@ -78,7 +83,9 @@ export default class Component extends UIComponent {
 
 ## How it works
 
-The library extends `sap.m.routing.Router` and overrides `parse()`, the single method through which all navigation flows (programmatic `navTo`, browser back/forward, direct URL changes). Guards run before any route matching, target loading, or view creation.
+The library extends [`sap.m.routing.Router`](https://sdk.openui5.org/api/sap.m.routing.Router) and overrides `parse()`, the single method through which all navigation flows (programmatic `navTo`, browser back/forward, direct URL changes). Guards run before any route matching, target loading, or view creation.
+
+Because it extends the mobile router directly, all existing `sap.m.routing.Router` behavior (Targets, route events, `navTo`, back navigation) works unchanged.
 
 The guard pipeline stays **synchronous when all guards return plain values** and only becomes async when a guard returns a Promise. A generation counter discards stale async results when navigations overlap, and an `AbortSignal` is passed to each guard so async work (like `fetch`) can be cancelled early.
 
@@ -204,6 +211,21 @@ router.addRouteGuard("editOrder", {
 });
 ```
 
+### Dynamic guard registration
+
+Guards can be added or removed at any point during the router's lifetime:
+
+```typescript
+const logGuard: GuardFn = (ctx) => {
+	console.log(`Navigation: ${ctx.fromRoute} → ${ctx.toRoute}`);
+	return true;
+};
+
+router.addGuard(logGuard);
+// later...
+router.removeGuard(logGuard);
+```
+
 ### Leave guard with controller lifecycle
 
 ```typescript
@@ -229,15 +251,71 @@ export default class EditOrderController extends Controller {
 }
 ```
 
+> [!TIP]
 > **User feedback on blocked navigation**: When a leave guard blocks, the router silently restores the previous hash. There is no built-in confirmation dialog. Show a `sap.m.MessageBox.confirm()` inside your leave guard (returning the user's choice as a `Promise<boolean>`) to make the block visible.
 
-> **Guard cleanup**: The router's `destroy()` method automatically clears all guards when the component is destroyed. Controller-registered guards persist across in-app navigations (since UI5 caches views), which is typically desired for route-specific guards tied to view state.
+> [!NOTE]
+> **Guard cleanup and lifecycle**
+>
+> **Component level**: The router's `destroy()` method automatically clears all registered guards when the component is destroyed (including during FLP navigation).
+>
+> **Controller level**: UI5's routing caches views indefinitely, so `onExit` is called only when the component is destroyed, not on every navigation away. Controller-registered guards therefore persist across in-app navigations. This is typically the desired behavior for route-specific guards tied to view state.
+>
+> In FLP apps with `sap-keep-alive` enabled, the component persists when navigating to other apps. Guards remain registered since the same instance is reused.
+
+### Native alternative for leave guards: Fiori Launchpad data loss prevention
+
+If your app runs inside SAP Fiori Launchpad (FLP), the shell provides built-in data loss protection through two public APIs on `sap.ushell.Container`:
+
+**`setDirtyFlag(bDirty)`** (since 1.27.0): A simple boolean flag. When set to `true`, FLP shows a browser `confirm()` dialog when the user attempts cross-app navigation (home button, other tiles), browser back/forward out of the app, or page refresh/close:
+
+```typescript
+sap.ushell.Container.setDirtyFlag(true); // mark unsaved changes
+sap.ushell.Container.setDirtyFlag(false); // clear after save
+```
+
+**`registerDirtyStateProvider(fn)`** (since 1.31.0): Registers a callback that FLP calls during navigation to dynamically determine dirty state. The callback receives a `NavigationContext` with `isCrossAppNavigation` (boolean) and `innerAppRoute` (string), allowing the provider to distinguish between cross-app and in-app navigation:
+
+```typescript
+const dirtyProvider = (navigationContext) => {
+	if (navigationContext?.isCrossAppNavigation) {
+		return formModel.getProperty("/isDirty");
+	}
+	return false; // let in-app routing handle it
+};
+sap.ushell.Container.registerDirtyStateProvider(dirtyProvider);
+
+// Clean up (since 1.67.0)
+sap.ushell.Container.deregisterDirtyStateProvider(dirtyProvider);
+```
+
+> **Note**: `getDirtyFlag()` is deprecated since UI5 1.120. FLP internally uses `getDirtyFlagsAsync()` (private) which combines the flag with all registered providers. The synchronous `getDirtyFlag()` still works but should not be relied upon in new code.
+
+**How the two approaches complement each other**: FLP's data loss protection operates at the shell navigation filter level, intercepting navigation _before_ the hash change reaches your app's router. Leave guards operate _inside_ your app's router, intercepting route-to-route navigation. For complete coverage:
+
+- Use **leave guards** for in-app route changes (e.g., navigating from an edit form to a list within your app)
+- Use **`setDirtyFlag`** or **`registerDirtyStateProvider`** for FLP-level navigation (cross-app, browser close, home button)
+
+See the [FLP Dirty State Research](../../docs/research-flp-dirty-state.md) for a detailed analysis of the FLP internals.
 
 ## Limitations
 
 ### Redirect targets bypass guards
 
-When a guard redirects from route A to route B, route B's guards are **not** evaluated. This prevents infinite redirect loops. In practice, redirect targets are typically "safe" routes (`home`, `login`) without guards. If you need guard logic on a redirect target, run the check inline:
+When a guard redirects navigation from route A to route B, route B's guards are **not** evaluated. The redirect commits immediately.
+
+This matters when the redirect target has its own guards. For example:
+
+```
+User navigates to "dashboard"
+  → dashboard guard checks permissions, returns "profile"
+  → profile guard checks onboarding status ← this guard is SKIPPED
+  → profile view renders
+```
+
+This is intentional. Evaluating guards on redirect targets introduces the risk of infinite loops (`A → B → A → B → ...`). While solvable with a visited-set that detects cycles, the implementation adds significant complexity. This is particularly true when redirect targets have **async** guards, since the redirect chain can no longer be bracketed in a single synchronous call stack. The chain state must then persist across async boundaries and be cleared only by terminal events (commit, block, or loop detection).
+
+In practice, redirect targets are typically "safe" routes like `home` or `login` that don't have guards of their own. If you need guard logic on a redirect target, run the check inline before returning the redirect:
 
 ```typescript
 router.addRouteGuard("dashboard", (context) => {
@@ -248,17 +326,40 @@ router.addRouteGuard("dashboard", (context) => {
 });
 ```
 
-### URL bar flickers during async guards
+### URL bar shows target hash during async guards
 
-When a guard returns a Promise, the browser's URL bar shows the target hash while the guard resolves. If it blocks or redirects, the URL reverts. This is a UI5 architecture constraint — `HashChanger` updates the URL before `parse()` is called. Sync guards are not affected.
+When a guard returns a Promise (e.g., a `fetch` call to check permissions), the browser's URL bar shows the target hash while the guard is resolving. If the guard ultimately blocks or redirects, the URL reverts. However, there is a brief window where the displayed URL doesn't match the active route.
 
-Show a busy indicator while async guards resolve to communicate that navigation is in progress:
+This does **not** affect sync guards, which resolve in the same tick as the hash change (the URL flicker is imperceptible).
+
+**Why the router doesn't handle this**: UI5's `HashChanger` updates the URL and fires `hashChanged` _before_ `parse()` is called. The router cannot prevent the URL change; it can only react to it. Frameworks like Vue Router and Angular Router avoid this by controlling the URL update themselves (calling `history.pushState` only after guards resolve), but UI5's architecture doesn't allow this without intercepting at the HashChanger level, which is globally scoped and fragile.
+
+```
+User clicks link / navTo()
+        ↓
+HashChanger updates browser URL    ← URL changes HERE
+        ↓
+HashChanger fires hashChanged
+        ↓
+Router.parse() called              ← guards run HERE
+        ↓
+   ┌────┴────┐
+allowed    blocked
+   ↓          ↓
+views      _restoreHash()
+load       reverts URL
+```
+
+Show a busy indicator while async guards resolve. This communicates to the user that navigation is in progress, making the URL bar state a non-issue:
 
 ```typescript
 router.addRouteGuard("dashboard", async (context) => {
+	const app = rootView.byId("app") as App;
 	app.setBusy(true);
 	try {
-		const res = await fetch(`/api/access/${context.toRoute}`, { signal: context.signal });
+		const res = await fetch(`/api/access/${context.toRoute}`, {
+			signal: context.signal,
+		});
 		const { allowed } = await res.json();
 		return allowed ? true : "home";
 	} finally {
@@ -267,12 +368,15 @@ router.addRouteGuard("dashboard", async (context) => {
 });
 ```
 
+This follows the same pattern as [TanStack Router's `pendingComponent`](https://tanstack.com/router/latest/docs/framework/react/guide/navigation-blocking#handling-blocked-navigations): the URL reflects the intent while a loading state signals that the navigation hasn't committed yet.
+
 ## Compatibility
 
-- **Minimum UI5 version**: 1.118 (requires [`sap.ui.core.Lib`](https://sdk.openui5.org/api/sap.ui.core.Lib))
-- **Router APIs**: depends on [`getRouteInfoByHash`](https://sdk.openui5.org/api/sap.ui.core.routing.Router%23methods/getRouteInfoByHash) (since 1.75)
-- **Developed and tested against**: OpenUI5 1.144.0
+> [!IMPORTANT]
+> **Minimum UI5 version: 1.118**
+>
+> The library uses [`sap.ui.core.Lib`](https://sdk.openui5.org/api/sap.ui.core.Lib) for library initialization, which was introduced in **UI5 1.118**. The Router itself only depends on APIs available since 1.75 (notably [`getRouteInfoByHash`](https://sdk.openui5.org/api/sap.ui.core.routing.Router%23methods/getRouteInfoByHash)), but the library packaging sets the effective floor. Developed and tested against OpenUI5 1.144.0.
 
 ## License
 
-[MIT](https://github.com/wridgeu/ui5-lib-guard-router/blob/main/LICENSE)
+[MIT](../../LICENSE)
