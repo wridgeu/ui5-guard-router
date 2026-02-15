@@ -14,7 +14,7 @@ Drop-in replacement for `sap.m.routing.Router` that intercepts navigation **befo
 
 ## Why
 
-UI5's router has no way to block or redirect navigation before views render. The usual workaround — scattering guard logic across `attachPatternMatched` callbacks — causes flashes of unauthorized content, polluted browser history, and duplicated checks across controllers.
+UI5's router has no way to block or redirect navigation before views render. The usual workaround — scattering guard logic across `attachPatternMatched` callbacks — causes flashes of unauthorized content, polluted browser history, and scattered guard logic across controllers.
 
 This library solves all three by intercepting at the router level, before any route matching begins.
 
