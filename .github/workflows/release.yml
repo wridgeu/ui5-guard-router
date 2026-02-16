@@ -56,4 +56,4 @@ jobs:
 
             - run: npm run build
 
-            - run: NODE_AUTH_TOKEN="" npm publish -w packages/lib --provenance --access public
+            - run: npm publish -w packages/lib --provenance --access public
