@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.1](https://github.com/wridgeu/ui5-lib-guard-router/compare/v1.0.0...v1.0.1) (2026-02-16)
+
+
+### Bug Fixes
+
+* fix npm trusted publishing for OIDC ([78c5900](https://github.com/wridgeu/ui5-lib-guard-router/commit/78c59007f28a11eead75845e43efdda85e3bdbf6))
+* replace deprecated Component.get() and correct Log API usage ([f5a8af0](https://github.com/wridgeu/ui5-lib-guard-router/commit/f5a8af0bfaade1cdd2fc09cc4ccd3df7a07a2dac))
+
 ## 1.0.0 (2026-02-15)
 
 
